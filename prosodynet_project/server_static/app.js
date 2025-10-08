@@ -57,7 +57,18 @@ function cacheBust(path) {
 }
 
 function isAbsolutePath(value) {
-    return /^([A-Za-z]:[\\/]|\\/)/.test(value);
+    if (!value || typeof value !== "string") {
+        return false;
+    }
+    const first = value[0];
+    if (first === "/" || first === "\\") {
+        return true;
+    }
+    if (value.length > 2 && value[1] === ":") {
+        const third = value[2];
+        return third === "/" || third === "\\";
+    }
+    return false;
 }
 
 function joinPaths(base, relative) {
@@ -141,6 +152,34 @@ function syncPanels() {
 
 applyState();
 syncPanels();
+
+function seedDefaultRvcValues() {
+    const patch = {};
+    const base = sanitize(rvcBaseInput?.value);
+    if (base && state.rvc_base == null) {
+        patch.rvc_base = base;
+    }
+    const cliValue = sanitize(document.getElementById("rvc-cli")?.value);
+    if (cliValue && state.rvc_cli == null) {
+        patch.rvc_cli = cliValue;
+    }
+    const pthValue = sanitize(rvcPthInput?.value);
+    if (pthValue && state.rvc_pth == null) {
+        patch.rvc_pth = pthValue;
+    }
+    const cfgValue = sanitize(rvcConfigInput?.value);
+    if (cfgValue && state.rvc_config == null) {
+        patch.rvc_config = cfgValue;
+    }
+    if (useRvcInput && state.use_rvc == null) {
+        patch.use_rvc = useRvcInput.checked;
+    }
+    if (Object.keys(patch).length) {
+        updateState(patch);
+    }
+}
+
+seedDefaultRvcValues();
 
 vocoderRadios.forEach((radio) => {
     radio.addEventListener("change", () => {

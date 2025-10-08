@@ -1,6 +1,7 @@
 \
 import numpy as np
-import librosa, pyworld as pw
+import librosa
+import pyworld as pw
 import soundfile as sf
 
 def load_wav(path, sr=22050):
@@ -14,7 +15,7 @@ def load_wav(path, sr=22050):
 def wav_to_mel(wav, sr=22050, n_mels=80, n_fft=1024, hop=256, win=1024, fmin=0, fmax=8000):
     S = librosa.stft(wav, n_fft=n_fft, hop_length=hop, win_length=win, window='hann', center=True)
     mag = np.abs(S)
-    mel_fb = librosa.filters.mel(sr, n_fft, n_mels, fmin=fmin, fmax=fmax)
+    mel_fb = librosa.filters.mel(sr=sr, n_fft=n_fft, n_mels=n_mels, fmin=fmin, fmax=fmax)
     mel = np.dot(mel_fb, mag)
     mel = np.log(np.clip(mel, 1e-5, None))
     return mel.T  # [T, n_mels]

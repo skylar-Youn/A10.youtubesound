@@ -72,6 +72,11 @@
                         </label>
                     </legend>
                     <div id="rvc-config" class="grid hidden">
+                        <div class="help-block">
+                            <p>ProsodyNet이 생성한 감정 음성을 RVC로 변환하려면 아래 항목을 모두 채워야 합니다.</p>
+                            <p>RVC CLI는 `python infer-web.py`처럼 직접 실행할 명령이며, 서버는 자동으로 `--input_path`, `--output_path`, `--pth_path`, `--config_path`, `--f0method`, `--pitch_shift` 인자를 뒤에 붙입니다.</p>
+                            <p>목록에서 선택한 `.pth`/설정 파일이 상대경로라면 위의 RVC 기본 경로와 합쳐져 전달됩니다.</p>
+                        </div>
                         <label class="field">
                             <span>RVC 기본 경로</span>
                             <div class="row">
@@ -81,16 +86,16 @@
                         </label>
                         <label class="field">
                             <span>RVC CLI (예: python infer-web.py)</span>
-                            <input id="rvc-cli" type="text" placeholder="선택">
+                            <input id="rvc-cli" type="text" value="python infer-web.py" placeholder="선택">
                         </label>
                         <label class="field">
                             <span>RVC 모델 (.pth)</span>
-                            <input id="rvc-pth" type="text" placeholder="선택 또는 직접 입력" list="rvc-pth-options">
+                            <input id="rvc-pth" type="text" value="logs/mi-test7/G_2333333.pth" placeholder="선택 또는 직접 입력" list="rvc-pth-options">
                             <datalist id="rvc-pth-options"></datalist>
                         </label>
                         <label class="field">
                             <span>RVC Config 경로</span>
-                            <input id="rvc-config-path" type="text" placeholder="선택 또는 직접 입력" list="rvc-config-options">
+                            <input id="rvc-config-path" type="text" value="logs/mi-test7/config.json" placeholder="선택 또는 직접 입력" list="rvc-config-options">
                             <datalist id="rvc-config-options"></datalist>
                         </label>
                     </div>

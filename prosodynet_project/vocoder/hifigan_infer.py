@@ -1,9 +1,15 @@
 \
-import argparse, json, numpy as np, torch, soundfile as sf, importlib, subprocess, os, librosa
+import argparse
+import importlib
+import json
+import librosa
+import numpy as np
+import soundfile as sf
+import torch
 
 def griffinlim_from_mel(mel, sr=22050, n_fft=1024, hop=256, win=1024, fmin=0, fmax=8000, iters=60):
     mel = np.exp(mel.T)  # [n_mels, T]
-    mel_filter = librosa.filters.mel(sr, n_fft, mel.shape[0], fmin=fmin, fmax=fmax)
+    mel_filter = librosa.filters.mel(sr=sr, n_fft=n_fft, n_mels=mel.shape[0], fmin=fmin, fmax=fmax)
     inv_mel = np.linalg.pinv(mel_filter)
     mag = np.clip(inv_mel @ mel, 1e-6, None)
     wav = librosa.griffinlim(mag, n_iter=iters, hop_length=hop, win_length=win)

@@ -81,6 +81,8 @@ class SInput(BaseModel):
     emotion_id: int = 0
     tts_model: str = "tts_models/multilingual/multi-dataset/xtts_v2"
     use_rvc: bool = False
+    language: str | None = None
+    speaker: str | None = None
     rvc: RVCConfig | None = None
     vocoder: VocoderConfig | None = VocoderConfig()
 
@@ -131,6 +133,93 @@ def list_rvc_files(base_path: str | None = Query(None, alias="basePath")):
         "config": _collect_files(base, ["*.json", "*.yaml", "*.yml"]),
     }
 
+
+def _flatten_iterable(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return list(value.keys())
+    if isinstance(value, (list, tuple, set)):
+        return list(value)
+    return []
+
+
+def _pick_language(tts: TTS, requested: str | None) -> str | None:
+    if requested:
+        return requested
+    if not getattr(tts, "is_multi_lingual", False):
+        return None
+    candidates: list[str] = []
+    try:
+        candidates = _flatten_iterable(tts.languages)  # type: ignore[arg-type]
+    except Exception:
+        candidates = []
+    if not candidates:
+        synth = getattr(tts, "synthesizer", None)
+        if synth is not None:
+            try:
+                candidates = _flatten_iterable(getattr(synth, "tts_languages", None))
+            except Exception:
+                candidates = []
+    if candidates:
+        return candidates[0]
+    return "en"
+
+
+def _load_cached_speakers(tts: TTS) -> list[str]:
+    base_dir = getattr(tts.manager, "output_prefix", None)
+    if not base_dir:
+        return []
+    cache_dir = Path(base_dir) / tts.model_name.replace("/", "--")
+    if not cache_dir.exists():
+        return []
+    for name in ("speakers.pth", "speakers_xtts.pth", "speakers.json"):
+        candidate = cache_dir / name
+        if not candidate.exists():
+            continue
+        try:
+            if candidate.suffix == ".json":
+                payload = json.loads(candidate.read_text(encoding="utf-8"))
+            else:
+                payload = torch.load(candidate, map_location="cpu")
+        except Exception:
+            continue
+        speakers = _flatten_iterable(payload)
+        if speakers:
+            return speakers
+    return []
+
+
+def _pick_speaker(tts: TTS, requested: str | None) -> str | None:
+    if requested:
+        return requested
+    if not getattr(tts, "is_multi_speaker", False):
+        return None
+    candidates: list[str] = []
+    try:
+        candidates = _flatten_iterable(tts.speakers)  # type: ignore[attr-defined]
+    except Exception:
+        candidates = []
+    if not candidates:
+        synth = getattr(tts, "synthesizer", None)
+        if synth is not None:
+            speaker_manager = getattr(synth, "speaker_manager", None)
+            if speaker_manager is not None and hasattr(speaker_manager, "speakers"):
+                try:
+                    candidates = _flatten_iterable(speaker_manager.speakers)
+                except Exception:
+                    candidates = []
+            if not candidates:
+                candidates = _flatten_iterable(getattr(synth, "tts_speakers", None))
+    if not candidates:
+        candidates = _load_cached_speakers(tts)
+    if candidates:
+        return candidates[0]
+    raise HTTPException(
+        status_code=400,
+        detail=f"TTS model '{tts.model_name}' requires a speaker id; include `speaker` in the request.",
+    )
+
 def load_net(emo_classes):
     net = ProsodyNet(n_mels=N_MELS, emo_classes=emo_classes)
     ckpt = CKPT_MULTI if emo_classes > 1 and os.path.exists(CKPT_MULTI) else CKPT_SINGLE
@@ -149,9 +238,28 @@ def index():
 def synth(in_: SInput):
     # 1) TTS neutral
     tts = load_tts_model(in_.tts_model)
+    try:
+        speaker = _pick_speaker(tts, in_.speaker)
+        language = _pick_language(tts, in_.language)
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - unexpected TTS metadata failure
+        raise HTTPException(status_code=500, detail=f"Failed to prepare TTS arguments: {exc}") from exc
+
+    tts_kwargs: dict[str, str] = {}
+    if speaker is not None:
+        tts_kwargs["speaker"] = speaker
+    if language is not None:
+        tts_kwargs["language"] = language
+
     neutral_name = f"neutral_{uuid.uuid4().hex}.wav"
     neutral_path = STATIC_DIR / neutral_name
-    tts.tts_to_file(text=in_.text, file_path=str(neutral_path))
+    try:
+        tts.tts_to_file(text=in_.text, file_path=str(neutral_path), **tts_kwargs)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
 
     # 2) ProsodyNet -> emotional mel
     wav, _ = load_wav(str(neutral_path), SR)
@@ -216,12 +324,22 @@ def synth(in_: SInput):
                 "neutral_wav": f"/static/{neutral_name}",
                 "mel": f"/static/{mel_name}",
                 "emotional_wav": f"/static/{rvc_name}",
-                "ckpt_used": ckpt
+                "ckpt_used": ckpt,
+                "tts_used": {
+                    "model": in_.tts_model,
+                    "language": language,
+                    "speaker": speaker,
+                },
             }
 
     return {
         "neutral_wav": f"/static/{neutral_name}",
         "mel": f"/static/{mel_name}",
         "emotional_wav": f"/static/{out_name}" if result_exists else None,
-        "ckpt_used": ckpt
+        "ckpt_used": ckpt,
+        "tts_used": {
+            "model": in_.tts_model,
+            "language": language,
+            "speaker": speaker,
+        },
     }

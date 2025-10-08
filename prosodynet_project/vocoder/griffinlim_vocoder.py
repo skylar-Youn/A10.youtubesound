@@ -1,10 +1,13 @@
 \
-import argparse, numpy as np, librosa, soundfile as sf
+import argparse
+import numpy as np
+import librosa
+import soundfile as sf
 
 def mel_to_linear(mel_db, sr=22050, n_fft=1024, fmin=0, fmax=8000):
     # mel_db: [T, n_mels] in log scale
     mel = np.exp(mel_db.T)  # [n_mels, T] in magnitude-like
-    mel_filter = librosa.filters.mel(sr, n_fft, mel.shape[0], fmin=fmin, fmax=fmax)
+    mel_filter = librosa.filters.mel(sr=sr, n_fft=n_fft, n_mels=mel.shape[0], fmin=fmin, fmax=fmax)
     # Pseudo-inverse to approximate linear spectrogram
     inv_mel = np.linalg.pinv(mel_filter)
     mag = np.clip(inv_mel @ mel, 1e-6, None)  # [n_fft//2+1, T]
