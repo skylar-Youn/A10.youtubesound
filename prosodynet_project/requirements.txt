@@ -1,7 +1,7 @@
 torch>=2.1
 torchaudio
 librosa>=0.10
-numpy
+numpy<2
 scipy
 tqdm
 pyworld

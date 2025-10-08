@@ -1,0 +1,47 @@
+mode: singing
+
+inputs:
+  lyrics: phonemes_ko
+  score:
+    enabled: true
+    format: musicxml
+  controls:
+    vibrato_depth: 0.6
+    vibrato_rate: 6.2
+    dynamics_curve: "crescendo(0-60%) then hold"
+
+conditioners:
+  singer_embed: ecapa_tdnn_256
+  emotion_vec_dim: 8
+  f0_guide: true
+
+modules:
+  score_encoder:
+    pitch_embed: 256
+    dur_embed: 128
+    beat_pos_embed: 64
+  duration_model:
+    type: transformer_dur
+  f0_generator:
+    type: parametric
+    vibrato: {depth_range_cents: [0,100], rate_hz: [4.5,7.5]}
+  backbone: orpheus_3b
+  cln_layers: [6, 9, 12, 15]
+  refiner:
+    type: unet1d_diffusion
+    steps: 20
+  vocoder:
+    type: nsf_hifigan
+
+loss:
+  mel_l1: 1.0
+  stft: 0.5
+  f0_rmse: 0.5
+  vib_reg: 0.1
+  align: 0.3
+  gan: 0.2
+
+train:
+  lr: 1e-4
+  batch_size: 8
+  clip_seconds: 10.0

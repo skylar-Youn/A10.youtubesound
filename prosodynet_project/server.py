@@ -34,6 +34,32 @@ def _activate_local_venv():
 
 _activate_local_venv()
 
+def _prepend_env_path(var: str, new_path: Path) -> None:
+    """Prepend a path to an environment variable list if it is not already present."""
+    new_path = new_path.resolve()
+    if not new_path.exists():
+        return
+    current = os.environ.get(var, "")
+    parts = [p for p in current.split(os.pathsep) if p]
+    if str(new_path) in parts:
+        return
+    os.environ[var] = os.pathsep.join([str(new_path), *parts]) if parts else str(new_path)
+
+
+def _ensure_nv_libraries_resolvable():
+    """Make bundled NVIDIA CUDA libs visible to the dynamic loader before importing torch."""
+    site_roots = [Path(p) for p in sys.path if "site-packages" in p]
+    for root in site_roots:
+        nv_root = root / "nvidia"
+        if not nv_root.exists():
+            continue
+        for sub in ("nvjitlink/lib", "cusparse/lib", "cuda_runtime/lib"):
+            candidate = nv_root / sub
+            _prepend_env_path("LD_LIBRARY_PATH", candidate)
+
+
+_ensure_nv_libraries_resolvable()
+
 import json
 import subprocess
 import uuid

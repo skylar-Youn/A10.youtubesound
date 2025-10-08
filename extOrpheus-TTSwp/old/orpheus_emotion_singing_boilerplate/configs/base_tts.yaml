@@ -1,0 +1,39 @@
+model:
+  backbone: orpheus_3b
+  speaker_embed: ecapa_tdnn_192
+  emotion_encoder: wav2vec2_lstm_8d
+  emotion_dim: 8
+  cln:
+    enabled: true
+    layers: [6, 9, 12, 15]
+  alignment:
+    emo_align_weight: 0.3
+    dur_weight: 0.1
+
+refiner:
+  type: unet1d_diffusion
+  steps: 20
+  cond: emotion_vector
+
+vocoder:
+  type: hifigan
+
+train:
+  lr: 1e-4
+  batch_size: 12
+  clip_seconds: 8.0
+  precision: fp16
+  losses:
+    mel_l1: 1.0
+    stft: 0.5
+    gan: 0.2
+    emo_align: 0.3
+
+data:
+  langs: [ko, en]
+  balance:
+    emotions: [neutral, happy, sad, angry]
+    target_ratio: [0.25, 0.25, 0.25, 0.25]
+  augment:
+    pitch_semitone: [-0.8, 0.8]
+    tempo: [0.9, 1.1]
