@@ -1,0 +1,12 @@
+torch>=2.1
+torchaudio
+librosa>=0.10
+numpy
+scipy
+tqdm
+pyworld
+soundfile
+fastapi
+uvicorn
+TTS==0.22.0
+pydantic

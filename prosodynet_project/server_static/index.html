@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProsodyNet Emotion TTS</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <main class="container">
+        <header>
+            <h1>ProsodyNet 감정 음성 합성</h1>
+            <p>문장을 입력하고 감정을 선택하면 ProsodyNet이 TTS 음성을 감정화합니다.</p>
+        </header>
+
+        <section class="card">
+            <form id="synth-form">
+                <label class="field">
+                    <span>합성할 문장</span>
+                    <textarea id="text-input" rows="4" placeholder="예: 안녕하세요, 오늘 기분이 어떤가요?" required></textarea>
+                </label>
+
+                <div class="grid">
+                    <label class="field">
+                        <span>감정</span>
+                        <select id="emotion-select">
+                            <option value="0">0 - Neutral</option>
+                            <option value="1">1 - Happy</option>
+                            <option value="2">2 - Sad</option>
+                            <option value="3">3 - Angry</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>TTS 모델 ID</span>
+                        <input id="tts-model" type="text" value="tts_models/multilingual/multi-dataset/xtts_v2">
+                    </label>
+                </div>
+
+                <fieldset class="field">
+                    <legend>Vocoder</legend>
+                    <label class="inline">
+                        <input type="radio" name="vocoder-mode" value="griffinlim" checked>
+                        Griffin-Lim
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="vocoder-mode" value="hifigan">
+                        HiFi-GAN
+                    </label>
+
+                    <div id="hifigan-config" class="grid hidden">
+                        <label class="field">
+                            <span>Generator 모듈 (예: vocoder.hifigan_generator)</span>
+                            <input id="hifigan-module" type="text" placeholder="선택">
+                        </label>
+                        <label class="field">
+                            <span>Generator 체크포인트 경로</span>
+                            <input id="hifigan-ckpt" type="text" placeholder="선택">
+                        </label>
+                        <label class="field">
+                            <span>Config JSON 경로</span>
+                            <input id="hifigan-config-path" type="text" placeholder="선택">
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="field">
+                    <legend>
+                        <label class="inline">
+                            <input id="use-rvc" type="checkbox">
+                            RVC 후처리 사용
+                        </label>
+                    </legend>
+                    <div id="rvc-config" class="grid hidden">
+                        <label class="field">
+                            <span>RVC 기본 경로</span>
+                            <div class="row">
+                                <input id="rvc-base" type="text" value="/home/sk/ws/SD/RVC_TRAIN/Mangio-RVC-v23.7.0/weights" placeholder="예: /home/.../weights">
+                                <button id="rvc-refresh" type="button" class="secondary-button">목록 불러오기</button>
+                            </div>
+                        </label>
+                        <label class="field">
+                            <span>RVC CLI (예: python infer-web.py)</span>
+                            <input id="rvc-cli" type="text" placeholder="선택">
+                        </label>
+                        <label class="field">
+                            <span>RVC 모델 (.pth)</span>
+                            <input id="rvc-pth" type="text" placeholder="선택 또는 직접 입력" list="rvc-pth-options">
+                            <datalist id="rvc-pth-options"></datalist>
+                        </label>
+                        <label class="field">
+                            <span>RVC Config 경로</span>
+                            <input id="rvc-config-path" type="text" placeholder="선택 또는 직접 입력" list="rvc-config-options">
+                            <datalist id="rvc-config-options"></datalist>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <button id="synth-btn" type="submit">합성 실행</button>
+            </form>
+            <div id="status" class="status">준비 완료</div>
+        </section>
+
+        <section id="results" class="card hidden">
+            <h2>결과</h2>
+            <ul>
+                <li><span>중립 음성:</span> <audio id="neutral-audio" controls></audio></li>
+                <li><span>감정 멜 스펙트로그램:</span> <a id="mel-link" href="#" download>다운로드</a></li>
+                <li><span>감정 음성:</span> <audio id="emotional-audio" controls></audio></li>
+                <li id="ckpt-line"></li>
+            </ul>
+        </section>
+    </main>
+
+    <script src="/static/app.js" type="module"></script>
+</body>
+</html>
