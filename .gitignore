@@ -5,3 +5,12 @@
 *.tar
 *.safetensors
 *.pdf
+data/*
+*.wav
+.env
+.gitignore
+aihubshell
+aihubshell_download.sh
+README.md
+
+

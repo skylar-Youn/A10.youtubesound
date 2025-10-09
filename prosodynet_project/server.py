@@ -63,6 +63,7 @@ _ensure_nv_libraries_resolvable()
 import json
 import subprocess
 import uuid
+import wave
 from functools import lru_cache
 
 import numpy as np
@@ -71,7 +72,20 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from TTS.api import TTS
+
+try:
+    from TTS.api import TTS
+    COQUI_AVAILABLE = True
+except ImportError:
+    COQUI_AVAILABLE = False
+    TTS = None
+
+try:
+    from orpheus_tts import OrpheusModel
+    ORPHEUS_AVAILABLE = True
+except ImportError:
+    ORPHEUS_AVAILABLE = False
+    OrpheusModel = None
 
 try:  # allow running both as package and as a script
     from .prosodynet import ProsodyNet
@@ -81,10 +95,11 @@ except ImportError:  # pragma: no cover - fallback for direct execution
     from utils_audio import load_wav, wav_to_mel, extract_f0_pw, extract_energy
 
 SR = 22050; HOP = 256; N_MELS = 80
-CKPT_SINGLE = "ckpt/prosodynet.pt"
-CKPT_MULTI  = "ckpt/prosodynet_multi.pt"  # if trained with multi-emotions
+PROJECT_DIR = Path(__file__).resolve().parent
+CKPT_SINGLE = PROJECT_DIR / "ckpt" / "prosodynet.pt"
+CKPT_MULTI  = PROJECT_DIR / "ckpt" / "prosodynet_multi.pt"  # if trained with multi-emotions
 
-STATIC_DIR = Path(__file__).resolve().parent / "server_static"
+STATIC_DIR = PROJECT_DIR / "server_static"
 STATIC_DIR.mkdir(exist_ok=True)
 DEFAULT_RVC_DIR = Path(os.environ.get("PROSODYNET_RVC_DIR", "/home/sk/ws/SD/RVC_TRAIN/Mangio-RVC-v23.7.0/weights")).expanduser()
 
@@ -105,16 +120,24 @@ class VocoderConfig(BaseModel):
 class SInput(BaseModel):
     text: str
     emotion_id: int = 0
+    tts_engine: str = "coqui"  # "coqui" or "orpheus"
     tts_model: str = "tts_models/multilingual/multi-dataset/xtts_v2"
+    use_prosodynet: bool = True  # Apply emotion conversion with ProsodyNet
     use_rvc: bool = False
     language: str | None = None
     speaker: str | None = None
+    orpheus_voice: str = "tara"  # for Orpheus: tara, leah, jess, leo, dan, mia, zac, zoe
     rvc: RVCConfig | None = None
     vocoder: VocoderConfig | None = VocoderConfig()
 
 
 @lru_cache(maxsize=4)
 def load_tts_model(model_name: str) -> TTS:
+    if not COQUI_AVAILABLE:
+        raise HTTPException(
+            status_code=500,
+            detail="Coqui TTS is not available. There may be a library conflict. Try using Orpheus TTS instead."
+        )
     try:
         return TTS(model_name)
     except KeyError as exc:
@@ -124,6 +147,19 @@ def load_tts_model(model_name: str) -> TTS:
         ) from exc
     except Exception as exc:  # pragma: no cover - surface cause to client
         raise HTTPException(status_code=500, detail=f"Failed to load TTS model '{model_name}': {exc}") from exc
+
+
+@lru_cache(maxsize=2)
+def load_orpheus_model(model_name: str = "canopylabs/orpheus-tts-0.1-finetune-prod") -> OrpheusModel:
+    if not ORPHEUS_AVAILABLE:
+        raise HTTPException(
+            status_code=500,
+            detail="Orpheus TTS is not installed. Run: pip install orpheus-speech"
+        )
+    try:
+        return OrpheusModel(model_name=model_name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load Orpheus model '{model_name}': {exc}") from exc
 
 
 def _resolve_rvc_base(base_path: str | None) -> Path:
@@ -248,10 +284,15 @@ def _pick_speaker(tts: TTS, requested: str | None) -> str | None:
 
 def load_net(emo_classes):
     net = ProsodyNet(n_mels=N_MELS, emo_classes=emo_classes)
-    ckpt = CKPT_MULTI if emo_classes > 1 and os.path.exists(CKPT_MULTI) else CKPT_SINGLE
-    net.load_state_dict(torch.load(ckpt, map_location="cpu"))
+    ckpt = CKPT_MULTI if emo_classes > 1 and CKPT_MULTI.exists() else CKPT_SINGLE
+    if not ckpt.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"ProsodyNet checkpoint not found at '{ckpt}'. Please train the model first."
+        )
+    net.load_state_dict(torch.load(str(ckpt), map_location="cpu"))
     net.eval()
-    return net, ckpt
+    return net, str(ckpt)
 
 @app.get("/")
 def index():
@@ -262,75 +303,103 @@ def index():
 
 @app.post("/synthesize")
 def synth(in_: SInput):
-    # 1) TTS neutral
-    tts = load_tts_model(in_.tts_model)
-    try:
-        speaker = _pick_speaker(tts, in_.speaker)
-        language = _pick_language(tts, in_.language)
-    except HTTPException:
-        raise
-    except Exception as exc:  # pragma: no cover - unexpected TTS metadata failure
-        raise HTTPException(status_code=500, detail=f"Failed to prepare TTS arguments: {exc}") from exc
-
-    tts_kwargs: dict[str, str] = {}
-    if speaker is not None:
-        tts_kwargs["speaker"] = speaker
-    if language is not None:
-        tts_kwargs["language"] = language
-
+    # 1) TTS neutral - choose engine
     neutral_name = f"neutral_{uuid.uuid4().hex}.wav"
     neutral_path = STATIC_DIR / neutral_name
-    try:
-        tts.tts_to_file(text=in_.text, file_path=str(neutral_path), **tts_kwargs)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
+    speaker = None
+    language = None
 
-    # 2) ProsodyNet -> emotional mel
-    wav, _ = load_wav(str(neutral_path), SR)
-    nmel = wav_to_mel(wav, SR, N_MELS, 1024, HOP, 1024)
-    nf0  = extract_f0_pw(wav, SR, HOP)
-    nene = extract_energy(nmel)
+    if in_.tts_engine == "orpheus":
+        # Use Orpheus TTS
+        model = load_orpheus_model()
+        try:
+            with wave.open(str(neutral_path), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(24000)
+                for audio_chunk in model.generate_speech(prompt=in_.text, voice=in_.orpheus_voice):
+                    wf.writeframes(audio_chunk)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Orpheus TTS synthesis failed: {exc}") from exc
 
-    emo_classes = 4  # set your trained number (e.g., happy/sad/angry/neutral); adjust as needed
-    net, ckpt = load_net(emo_classes)
-
-    with torch.no_grad():
-        nmel_t = torch.from_numpy(nmel).unsqueeze(0).float()
-        nf0_t  = torch.from_numpy(nf0).unsqueeze(0).float()
-        nene_t = torch.from_numpy(nene).unsqueeze(0).float()
-        dmel_t = net(nmel_t, nf0_t, nene_t, emo_id=in_.emotion_id)
-        emel_t = nmel_t + dmel_t
-    emel = emel_t.squeeze(0).cpu().numpy()
-
-    mel_name = f"emel_{uuid.uuid4().hex}.npy"
-    mel_path = STATIC_DIR / mel_name
-    np.save(str(mel_path), emel)
-
-    # 3) Vocoder
-    out_name = f"emotional_{uuid.uuid4().hex}.wav"
-    out_path = STATIC_DIR / out_name
-    voc = in_.vocoder or VocoderConfig()
-    if voc.mode == "hifigan" and voc.generator_module and voc.generator_ckpt and voc.config:
-        subprocess.run([
-            "python", "vocoder/hifigan_infer.py",
-            "--mel", str(mel_path),
-            "--out", str(out_path),
-            "--mode", "hifigan",
-            "--generator_module", voc.generator_module,
-            "--generator_ckpt", voc.generator_ckpt,
-            "--config", voc.config
-        ], check=False)
     else:
-        subprocess.run([
-            "python", "vocoder/hifigan_infer.py",
-            "--mel", str(mel_path),
-            "--out", str(out_path),
-            "--mode", "griffinlim"
-        ], check=False)
+        # Use Coqui TTS (default)
+        tts = load_tts_model(in_.tts_model)
+        try:
+            speaker = _pick_speaker(tts, in_.speaker)
+            language = _pick_language(tts, in_.language)
+        except HTTPException:
+            raise
+        except Exception as exc:  # pragma: no cover - unexpected TTS metadata failure
+            raise HTTPException(status_code=500, detail=f"Failed to prepare TTS arguments: {exc}") from exc
 
-    result_exists = out_path.exists()
+        tts_kwargs: dict[str, str] = {}
+        if speaker is not None:
+            tts_kwargs["speaker"] = speaker
+        if language is not None:
+            tts_kwargs["language"] = language
+
+        try:
+            tts.tts_to_file(text=in_.text, file_path=str(neutral_path), **tts_kwargs)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
+
+    # 2) ProsodyNet -> emotional mel (optional)
+    if in_.use_prosodynet:
+        wav, _ = load_wav(str(neutral_path), SR)
+        nmel = wav_to_mel(wav, SR, N_MELS, 1024, HOP, 1024)
+        nf0  = extract_f0_pw(wav, SR, HOP)
+        nene = extract_energy(nmel)
+
+        emo_classes = 4  # set your trained number (e.g., happy/sad/angry/neutral); adjust as needed
+        net, ckpt = load_net(emo_classes)
+
+        with torch.no_grad():
+            nmel_t = torch.from_numpy(nmel).unsqueeze(0).float()
+            nf0_t  = torch.from_numpy(nf0).unsqueeze(0).float()
+            nene_t = torch.from_numpy(nene).unsqueeze(0).float()
+            dmel_t = net(nmel_t, nf0_t, nene_t, emo_id=in_.emotion_id)
+            emel_t = nmel_t + dmel_t
+        emel = emel_t.squeeze(0).cpu().numpy()
+
+        mel_name = f"emel_{uuid.uuid4().hex}.npy"
+        mel_path = STATIC_DIR / mel_name
+        np.save(str(mel_path), emel)
+
+        # 3) Vocoder
+        out_name = f"emotional_{uuid.uuid4().hex}.wav"
+        out_path = STATIC_DIR / out_name
+        voc = in_.vocoder or VocoderConfig()
+        vocoder_script = PROJECT_DIR / "vocoder" / "hifigan_infer.py"
+        if voc.mode == "hifigan" and voc.generator_module and voc.generator_ckpt and voc.config:
+            subprocess.run([
+                sys.executable, str(vocoder_script),
+                "--mel", str(mel_path),
+                "--out", str(out_path),
+                "--mode", "hifigan",
+                "--generator_module", voc.generator_module,
+                "--generator_ckpt", voc.generator_ckpt,
+                "--config", voc.config
+            ], check=False)
+        else:
+            subprocess.run([
+                sys.executable, str(vocoder_script),
+                "--mel", str(mel_path),
+                "--out", str(out_path),
+                "--mode", "griffinlim"
+            ], check=False)
+
+        result_exists = out_path.exists()
+    else:
+        # Skip ProsodyNet - use neutral audio as final output
+        mel_name = None
+        mel_path = None
+        ckpt = "N/A (ProsodyNet disabled)"
+        out_name = neutral_name  # Use neutral audio directly
+        out_path = neutral_path
+        result_exists = True
 
     # 4) Optional RVC
     if in_.use_rvc and in_.rvc and in_.rvc.cli and result_exists:
@@ -352,20 +421,25 @@ def synth(in_: SInput):
                 "emotional_wav": f"/static/{rvc_name}",
                 "ckpt_used": ckpt,
                 "tts_used": {
-                    "model": in_.tts_model,
+                    "engine": in_.tts_engine,
+                    "model": in_.tts_model if in_.tts_engine == "coqui" else "orpheus",
                     "language": language,
                     "speaker": speaker,
+                    "orpheus_voice": in_.orpheus_voice if in_.tts_engine == "orpheus" else None,
                 },
             }
 
     return {
         "neutral_wav": f"/static/{neutral_name}",
-        "mel": f"/static/{mel_name}",
+        "mel": f"/static/{mel_name}" if mel_name else None,
         "emotional_wav": f"/static/{out_name}" if result_exists else None,
         "ckpt_used": ckpt,
+        "prosodynet_enabled": in_.use_prosodynet,
         "tts_used": {
-            "model": in_.tts_model,
+            "engine": in_.tts_engine,
+            "model": in_.tts_model if in_.tts_engine == "coqui" else "orpheus",
             "language": language,
             "speaker": speaker,
+            "orpheus_voice": in_.orpheus_voice if in_.tts_engine == "orpheus" else None,
         },
     }

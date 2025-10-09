@@ -20,25 +20,63 @@
                     <textarea id="text-input" rows="4" placeholder="예: 안녕하세요, 오늘 기분이 어떤가요?" required></textarea>
                 </label>
 
-                <div class="grid">
-                    <label class="field">
-                        <span>감정</span>
-                        <select id="emotion-select">
-                            <option value="0">0 - Neutral</option>
-                            <option value="1">1 - Happy</option>
-                            <option value="2">2 - Sad</option>
-                            <option value="3">3 - Angry</option>
-                        </select>
-                    </label>
-
-                    <label class="field">
-                        <span>TTS 모델 ID</span>
-                        <input id="tts-model" type="text" value="tts_models/multilingual/multi-dataset/xtts_v2">
-                    </label>
-                </div>
+                <fieldset class="field">
+                    <legend>
+                        <label class="inline">
+                            <input id="use-prosodynet" type="checkbox" checked>
+                            ProsodyNet 감정 변환 사용
+                        </label>
+                    </legend>
+                    <div id="prosodynet-config">
+                        <label class="field">
+                            <span>감정</span>
+                            <select id="emotion-select">
+                                <option value="0">0 - Neutral</option>
+                                <option value="1">1 - Happy</option>
+                                <option value="2">2 - Sad</option>
+                                <option value="3">3 - Angry</option>
+                            </select>
+                        </label>
+                    </div>
+                </fieldset>
 
                 <fieldset class="field">
-                    <legend>Vocoder</legend>
+                    <legend>TTS 엔진</legend>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="coqui" checked>
+                        Coqui TTS
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="orpheus">
+                        Orpheus TTS
+                    </label>
+
+                    <div id="coqui-config" class="field">
+                        <label class="field">
+                            <span>TTS 모델 ID</span>
+                            <input id="tts-model" type="text" value="tts_models/multilingual/multi-dataset/xtts_v2">
+                        </label>
+                    </div>
+
+                    <div id="orpheus-config" class="field hidden">
+                        <label class="field">
+                            <span>Orpheus Voice</span>
+                            <select id="orpheus-voice">
+                                <option value="tara">Tara</option>
+                                <option value="leah">Leah</option>
+                                <option value="jess">Jess</option>
+                                <option value="leo">Leo</option>
+                                <option value="dan">Dan</option>
+                                <option value="mia">Mia</option>
+                                <option value="zac">Zac</option>
+                                <option value="zoe">Zoe</option>
+                            </select>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="field" id="vocoder-section">
+                    <legend>Vocoder (ProsodyNet용)</legend>
                     <label class="inline">
                         <input type="radio" name="vocoder-mode" value="griffinlim" checked>
                         Griffin-Lim

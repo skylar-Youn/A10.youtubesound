@@ -21,6 +21,15 @@ const rvcConfigInput = document.getElementById("rvc-config-path");
 const vocoderRadios = Array.from(
     document.querySelectorAll('input[name="vocoder-mode"]')
 );
+const ttsEngineRadios = Array.from(
+    document.querySelectorAll('input[name="tts-engine"]')
+);
+const coquiConfig = document.getElementById("coqui-config");
+const orpheusConfig = document.getElementById("orpheus-config");
+const orpheusVoiceSelect = document.getElementById("orpheus-voice");
+const useProsodynetInput = document.getElementById("use-prosodynet");
+const prosodynetConfig = document.getElementById("prosodynet-config");
+const vocoderSection = document.getElementById("vocoder-section");
 
 const STORAGE_KEY = "prosodynet_ui_state";
 
@@ -40,6 +49,11 @@ function setStatus(message, tone = "") {
 function getVocoderMode() {
     const checked = vocoderRadios.find((radio) => radio.checked);
     return checked ? checked.value : "griffinlim";
+}
+
+function getTtsEngine() {
+    const checked = ttsEngineRadios.find((radio) => radio.checked);
+    return checked ? checked.value : "coqui";
 }
 
 function sanitize(value) {
@@ -143,11 +157,31 @@ function applyState() {
     if (state.rvc_config && rvcConfigInput) {
         rvcConfigInput.value = state.rvc_config;
     }
+    if (state.tts_engine != null) {
+        const radio = ttsEngineRadios.find((item) => item.value === state.tts_engine);
+        if (radio) {
+            radio.checked = true;
+            toggleBlock(coquiConfig, radio.value === "coqui");
+            toggleBlock(orpheusConfig, radio.value === "orpheus");
+        }
+    }
+    if (state.orpheus_voice != null && orpheusVoiceSelect) {
+        orpheusVoiceSelect.value = state.orpheus_voice;
+    }
+    if (state.use_prosodynet != null && useProsodynetInput) {
+        useProsodynetInput.checked = state.use_prosodynet;
+        toggleBlock(prosodynetConfig, state.use_prosodynet);
+        toggleBlock(vocoderSection, state.use_prosodynet);
+    }
 }
 
 function syncPanels() {
     toggleBlock(hifiganFields, getVocoderMode() === "hifigan");
     toggleBlock(rvcFields, !!useRvcInput?.checked);
+    toggleBlock(coquiConfig, getTtsEngine() === "coqui");
+    toggleBlock(orpheusConfig, getTtsEngine() === "orpheus");
+    toggleBlock(prosodynetConfig, !!useProsodynetInput?.checked);
+    toggleBlock(vocoderSection, !!useProsodynetInput?.checked);
 }
 
 applyState();
@@ -189,6 +223,26 @@ vocoderRadios.forEach((radio) => {
     });
     radio.addEventListener("input", syncPanels);
 });
+
+ttsEngineRadios.forEach((radio) => {
+    radio.addEventListener("change", () => {
+        const engine = getTtsEngine();
+        syncPanels();
+        updateState({ tts_engine: engine });
+    });
+    radio.addEventListener("input", syncPanels);
+});
+
+orpheusVoiceSelect?.addEventListener("change", () => {
+    updateState({ orpheus_voice: orpheusVoiceSelect.value });
+});
+
+useProsodynetInput?.addEventListener("change", () => {
+    syncPanels();
+    updateState({ use_prosodynet: useProsodynetInput.checked });
+});
+
+useProsodynetInput?.addEventListener("input", syncPanels);
 
 useRvcInput.addEventListener("change", () => {
     syncPanels();
@@ -340,7 +394,10 @@ form.addEventListener("submit", async (event) => {
     const payload = {
         text,
         emotion_id: Number.parseInt(emotionSelect.value, 10),
+        tts_engine: getTtsEngine(),
         tts_model: sanitize(ttsModelInput.value) || "tts_models/multilingual/multi-dataset/xtts_v2",
+        orpheus_voice: sanitize(orpheusVoiceSelect?.value) || "tara",
+        use_prosodynet: useProsodynetInput?.checked ?? true,
         use_rvc: useRvcInput.checked,
         vocoder: {
             mode: getVocoderMode()
