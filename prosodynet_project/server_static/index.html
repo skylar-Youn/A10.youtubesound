@@ -28,13 +28,53 @@
                         </label>
                     </legend>
                     <div id="prosodynet-config">
+                        <div class="help-block">
+                            <p><strong>ESD 데이터셋 기반 학습</strong></p>
+                            <ul>
+                                <li>화자: 20명 (English 10명 + Mandarin 10명)</li>
+                                <li>감정: 5개 (Neutral, Happy, Sad, Angry, Surprise)</li>
+                                <li>각 감정당 7,000개 음성 파일</li>
+                                <li>총 35,000개 병렬 발화 데이터</li>
+                            </ul>
+                            <p><strong>시스템 정보</strong></p>
+                            <ul>
+                                <li>CPU: <span id="cpu-info">로딩 중...</span></li>
+                                <li>처리 방식: 16코어 병렬 처리로 전처리 수행</li>
+                            </ul>
+                        </div>
+                        <label class="field">
+                            <span>화자 선택 (Speaker)</span>
+                            <select id="speaker-select">
+                                <option value="0001">0001 - English Speaker 1</option>
+                                <option value="0002">0002 - English Speaker 2</option>
+                                <option value="0003">0003 - English Speaker 3</option>
+                                <option value="0004">0004 - English Speaker 4</option>
+                                <option value="0005">0005 - English Speaker 5</option>
+                                <option value="0006">0006 - English Speaker 6</option>
+                                <option value="0007">0007 - English Speaker 7</option>
+                                <option value="0008">0008 - English Speaker 8</option>
+                                <option value="0009">0009 - English Speaker 9</option>
+                                <option value="0010">0010 - English Speaker 10</option>
+                                <option value="0011">0011 - Mandarin Speaker 1</option>
+                                <option value="0012">0012 - Mandarin Speaker 2</option>
+                                <option value="0013">0013 - Mandarin Speaker 3</option>
+                                <option value="0014">0014 - Mandarin Speaker 4</option>
+                                <option value="0015">0015 - Mandarin Speaker 5</option>
+                                <option value="0016">0016 - Mandarin Speaker 6</option>
+                                <option value="0017">0017 - Mandarin Speaker 7</option>
+                                <option value="0018">0018 - Mandarin Speaker 8</option>
+                                <option value="0019">0019 - Mandarin Speaker 9</option>
+                                <option value="0020">0020 - Mandarin Speaker 10</option>
+                            </select>
+                        </label>
                         <label class="field">
                             <span>감정</span>
                             <select id="emotion-select">
-                                <option value="0">0 - Neutral</option>
-                                <option value="1">1 - Happy</option>
-                                <option value="2">2 - Sad</option>
-                                <option value="3">3 - Angry</option>
+                                <option value="0">0 - Neutral (중립)</option>
+                                <option value="1">1 - Happy (기쁨)</option>
+                                <option value="2">2 - Sad (슬픔)</option>
+                                <option value="3">3 - Angry (화남)</option>
+                                <option value="4">4 - Surprise (놀람)</option>
                             </select>
                         </label>
                     </div>

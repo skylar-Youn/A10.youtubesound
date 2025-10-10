@@ -37,12 +37,13 @@ def dtw_align(src_feat, tgt_feat, metric='cosine'):
     tgt_feat: [T2, D]
     Returns aligned_src, aligned_tgt with same length.
     """
-    # distance matrix via cosine distance
-    D = librosa.sequence.dtw(X=src_feat.T, Y=tgt_feat.T, metric=metric)[0]  # cost matrix
-    # path
-    wp = librosa.sequence.dtw(X=src_feat.T, Y=tgt_feat.T, metric=metric)[1]
-    path = list(zip(*wp))  # (i_idx, j_idx)
-    path = path[::-1]  # forward
+    # DTW 정렬 수행
+    D, wp = librosa.sequence.dtw(X=src_feat.T, Y=tgt_feat.T, metric=metric)
+
+    # wp는 numpy 배열 shape (N, 2)
+    # wp[:, 0]은 src 인덱스, wp[:, 1]은 tgt 인덱스
+    # DTW 경로는 이미 역순 (끝->시작)이므로 뒤집기
+    path = wp[::-1]
 
     src_aligned = []
     tgt_aligned = []

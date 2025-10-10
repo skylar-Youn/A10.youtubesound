@@ -64,6 +64,8 @@ import json
 import subprocess
 import uuid
 import wave
+import platform
+from multiprocessing import cpu_count
 from functools import lru_cache
 
 import numpy as np
@@ -443,3 +445,43 @@ def synth(in_: SInput):
             "orpheus_voice": in_.orpheus_voice if in_.tts_engine == "orpheus" else None,
         },
     }
+
+@app.get("/system/info")
+def system_info():
+    """시스템 정보 반환 (CPU 코어 수, 플랫폼 등)"""
+    try:
+        cpu_cores = cpu_count()
+        cpu_model = None
+
+        # Linux: /proc/cpuinfo에서 CPU 모델 읽기
+        if platform.system() == "Linux":
+            try:
+                with open("/proc/cpuinfo", "r") as f:
+                    for line in f:
+                        if line.startswith("model name"):
+                            cpu_model = line.split(":", 1)[1].strip()
+                            break
+            except:
+                pass
+
+        if not cpu_model:
+            cpu_model = platform.processor() or "Unknown"
+
+        return {
+            "cpu": {
+                "cores": cpu_cores,
+                "model": cpu_model
+            },
+            "platform": platform.system(),
+            "python_version": platform.python_version()
+        }
+    except Exception as e:
+        return {
+            "cpu": {
+                "cores": cpu_count(),
+                "model": "Unknown"
+            },
+            "platform": platform.system(),
+            "python_version": platform.python_version(),
+            "error": str(e)
+        }

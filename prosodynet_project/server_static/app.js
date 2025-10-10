@@ -7,6 +7,7 @@ const emotionalAudio = document.getElementById("emotional-audio");
 const melLink = document.getElementById("mel-link");
 const ckptLine = document.getElementById("ckpt-line");
 const textInput = document.getElementById("text-input");
+const speakerSelect = document.getElementById("speaker-select");
 const emotionSelect = document.getElementById("emotion-select");
 const ttsModelInput = document.getElementById("tts-model");
 const hifiganFields = document.getElementById("hifigan-config");
@@ -122,6 +123,9 @@ function applyState() {
     if (state.tts_model != null && ttsModelInput) {
         ttsModelInput.value = state.tts_model;
     }
+    if (state.speaker_id != null && speakerSelect) {
+        speakerSelect.value = state.speaker_id;
+    }
     if (state.emotion_id != null && emotionSelect) {
         emotionSelect.value = state.emotion_id;
     }
@@ -186,6 +190,32 @@ function syncPanels() {
 
 applyState();
 syncPanels();
+
+// 시스템 정보 가져오기
+async function fetchSystemInfo() {
+    try {
+        const response = await fetch("/system/info");
+        if (!response.ok) {
+            throw new Error(`Failed to fetch system info (HTTP ${response.status})`);
+        }
+        const data = await response.json();
+
+        const cpuInfoEl = document.getElementById("cpu-info");
+        if (cpuInfoEl) {
+            const cpuText = `${data.cpu.cores}코어 (${data.cpu.model})`;
+            cpuInfoEl.textContent = cpuText;
+        }
+    } catch (error) {
+        console.warn("Could not load system info:", error);
+        const cpuInfoEl = document.getElementById("cpu-info");
+        if (cpuInfoEl) {
+            cpuInfoEl.textContent = "정보 로드 실패";
+        }
+    }
+}
+
+// 페이지 로드 시 시스템 정보 가져오기
+fetchSystemInfo();
 
 function seedDefaultRvcValues() {
     const patch = {};
@@ -338,6 +368,10 @@ textInput?.addEventListener("input", () => {
     updateState({ text: textInput.value });
 });
 
+speakerSelect?.addEventListener("change", () => {
+    updateState({ speaker_id: speakerSelect.value });
+});
+
 emotionSelect?.addEventListener("change", () => {
     updateState({ emotion_id: emotionSelect.value });
 });
@@ -393,6 +427,7 @@ form.addEventListener("submit", async (event) => {
 
     const payload = {
         text,
+        speaker_id: sanitize(speakerSelect.value) || "0001",
         emotion_id: Number.parseInt(emotionSelect.value, 10),
         tts_engine: getTtsEngine(),
         tts_model: sanitize(ttsModelInput.value) || "tts_models/multilingual/multi-dataset/xtts_v2",

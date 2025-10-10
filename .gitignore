@@ -12,5 +12,9 @@ data/*
 aihubshell
 aihubshell_download.sh
 README.md
-
-
+*.part 
+data_raw/
+**/data_raw/
+feats/*
+**/feats/*
+prosodynet_project/feats/

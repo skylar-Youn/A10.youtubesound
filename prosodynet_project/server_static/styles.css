@@ -171,6 +171,17 @@ button[disabled] {
     margin-bottom: 0;
 }
 
+.help-block ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+    list-style: disc;
+}
+
+.help-block li {
+    margin: 4px 0;
+    color: #cbd5e1;
+}
+
 #results ul {
     list-style: none;
     padding: 0;
