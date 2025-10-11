@@ -19,3 +19,6 @@ feats/*
 **/feats/*
 prosodynet_project/feats/
 ckpt/*
+.venv-orpheus/*
+*.egg-info/
+
