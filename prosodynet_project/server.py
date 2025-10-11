@@ -106,6 +106,21 @@ STATIC_DIR.mkdir(exist_ok=True)
 DEFAULT_RVC_DIR = Path(os.environ.get("PROSODYNET_RVC_DIR", "/home/sk/ws/SD/RVC_TRAIN/Mangio-RVC-v23.7.0/weights")).expanduser()
 
 app = FastAPI(title="ProsodyNet Emotion Server (GL/HiFi-GAN)")
+
+@app.get("/static/list")
+def list_static_files():
+    """서버 static 폴더의 파일 목록 반환"""
+    try:
+        files = []
+        if STATIC_DIR.exists():
+            for file_path in STATIC_DIR.iterdir():
+                if file_path.is_file() and not file_path.name.startswith('.'):
+                    files.append(file_path.name)
+        files.sort(reverse=True)  # 최신 파일 먼저
+        return {"files": files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"파일 목록 조회 실패: {e}") from e
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 class RVCConfig(BaseModel):
@@ -445,20 +460,6 @@ def synth(in_: SInput):
             "orpheus_voice": in_.orpheus_voice if in_.tts_engine == "orpheus" else None,
         },
     }
-
-@app.get("/static/list")
-def list_static_files():
-    """서버 static 폴더의 파일 목록 반환"""
-    try:
-        files = []
-        if STATIC_DIR.exists():
-            for file_path in STATIC_DIR.iterdir():
-                if file_path.is_file() and not file_path.name.startswith('.'):
-                    files.append(file_path.name)
-        files.sort(reverse=True)  # 최신 파일 먼저
-        return {"files": files}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"파일 목록 조회 실패: {e}") from e
 
 @app.get("/system/info")
 def system_info():
