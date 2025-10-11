@@ -412,6 +412,99 @@ if (useRvcInput.checked && rvcPthOptions && !rvcPthOptions.children.length) {
     void refreshRvcFiles();
 }
 
+// 전체 다운로드 기능
+const downloadAllBtn = document.getElementById("download-all-btn");
+const browseFilesBtn = document.getElementById("browse-files-btn");
+const fileBrowser = document.getElementById("file-browser");
+const fileList = document.getElementById("file-list");
+
+let currentResults = {
+    neutral_wav: null,
+    mel: null,
+    emotional_wav: null
+};
+
+downloadAllBtn?.addEventListener("click", () => {
+    const files = [];
+    if (currentResults.neutral_wav) files.push({ url: currentResults.neutral_wav, name: "neutral.wav" });
+    if (currentResults.mel) files.push({ url: currentResults.mel, name: "emotional.npy" });
+    if (currentResults.emotional_wav) files.push({ url: currentResults.emotional_wav, name: "emotional.wav" });
+
+    if (files.length === 0) {
+        setStatus("다운로드할 파일이 없습니다.", "error");
+        return;
+    }
+
+    files.forEach(file => {
+        const a = document.createElement("a");
+        a.href = file.url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    });
+
+    setStatus(`${files.length}개 파일 다운로드 시작`, "success");
+});
+
+browseFilesBtn?.addEventListener("click", async () => {
+    try {
+        setStatus("파일 목록 불러오는 중...");
+        const response = await fetch("/static/list");
+
+        if (!response.ok) {
+            throw new Error(`파일 목록 조회 실패 (HTTP ${response.status})`);
+        }
+
+        const data = await response.json();
+        displayFileList(data.files || []);
+        fileBrowser.classList.remove("hidden");
+        setStatus("파일 목록 로드 완료", "success");
+    } catch (error) {
+        console.error(error);
+        setStatus(error.message, "error");
+    }
+});
+
+function displayFileList(files) {
+    if (!fileList) return;
+
+    fileList.innerHTML = "";
+
+    if (files.length === 0) {
+        fileList.innerHTML = "<p>파일이 없습니다.</p>";
+        return;
+    }
+
+    const ul = document.createElement("ul");
+    files.forEach(file => {
+        const li = document.createElement("li");
+
+        const link = document.createElement("a");
+        link.href = `/static/${file}`;
+        link.textContent = file;
+        link.download = file;
+
+        const playBtn = document.createElement("button");
+        playBtn.textContent = "▶️";
+        playBtn.className = "play-btn";
+        playBtn.onclick = (e) => {
+            e.preventDefault();
+            if (file.endsWith(".wav")) {
+                neutralAudio.src = cacheBust(`/static/${file}`);
+                neutralAudio.load();
+                neutralAudio.play();
+            }
+        };
+
+        li.appendChild(playBtn);
+        li.appendChild(link);
+        ul.appendChild(li);
+    });
+
+    fileList.appendChild(ul);
+}
+
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -488,6 +581,13 @@ form.addEventListener("submit", async (event) => {
         if (!data.neutral_wav) {
             throw new Error("서버가 유효한 결과를 반환하지 않았습니다.");
         }
+
+        // 결과 저장
+        currentResults = {
+            neutral_wav: data.neutral_wav,
+            mel: data.mel,
+            emotional_wav: data.emotional_wav
+        };
 
         neutralAudio.src = cacheBust(data.neutral_wav);
         neutralAudio.load();

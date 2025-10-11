@@ -446,6 +446,20 @@ def synth(in_: SInput):
         },
     }
 
+@app.get("/static/list")
+def list_static_files():
+    """서버 static 폴더의 파일 목록 반환"""
+    try:
+        files = []
+        if STATIC_DIR.exists():
+            for file_path in STATIC_DIR.iterdir():
+                if file_path.is_file() and not file_path.name.startswith('.'):
+                    files.append(file_path.name)
+        files.sort(reverse=True)  # 최신 파일 먼저
+        return {"files": files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"파일 목록 조회 실패: {e}") from e
+
 @app.get("/system/info")
 def system_info():
     """시스템 정보 반환 (CPU 코어 수, 플랫폼 등)"""
