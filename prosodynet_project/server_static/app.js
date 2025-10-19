@@ -40,6 +40,10 @@ const gttsLangSelect = document.getElementById("gtts-lang");
 const gttsTldSelect = document.getElementById("gtts-tld");
 const pyttsx3Config = document.getElementById("pyttsx3-config");
 const higgsConfig = document.getElementById("higgs-config");
+const higgsSingingModeInput = document.getElementById("higgs-singing-mode");
+const higgsEmotionSelect = document.getElementById("higgs-emotion");
+const higgsSpeedInput = document.getElementById("higgs-speed");
+const higgsSpeedValue = document.getElementById("higgs-speed-value");
 const higgsTemperatureInput = document.getElementById("higgs-temperature");
 const higgsTopPInput = document.getElementById("higgs-top-p");
 const higgsMaxTokensInput = document.getElementById("higgs-max-tokens");
@@ -330,6 +334,22 @@ gttsLangSelect?.addEventListener("change", () => {
 
 gttsTldSelect?.addEventListener("change", () => {
     updateState({ gtts_tld: gttsTldSelect.value });
+});
+
+higgsSingingModeInput?.addEventListener("change", () => {
+    updateState({ higgs_singing_mode: higgsSingingModeInput.checked });
+});
+
+higgsEmotionSelect?.addEventListener("change", () => {
+    updateState({ higgs_emotion: higgsEmotionSelect.value });
+});
+
+higgsSpeedInput?.addEventListener("input", () => {
+    const speed = parseFloat(higgsSpeedInput.value);
+    if (higgsSpeedValue) {
+        higgsSpeedValue.textContent = `${speed.toFixed(1)}x`;
+    }
+    updateState({ higgs_speed: speed });
 });
 
 higgsTemperatureInput?.addEventListener("change", () => {
@@ -811,6 +831,9 @@ form.addEventListener("submit", async (event) => {
         edge_pitch: "+0Hz",
         gtts_lang: sanitize(gttsLangSelect?.value) || "ko",
         gtts_tld: sanitize(gttsTldSelect?.value) || "com",
+        higgs_singing_mode: higgsSingingModeInput?.checked ?? false,
+        higgs_emotion: sanitize(higgsEmotionSelect?.value) || "neutral",
+        higgs_speed: parseFloat(higgsSpeedInput?.value) || 1.0,
         higgs_temperature: parseFloat(higgsTemperatureInput?.value) || 0.3,
         higgs_top_p: parseFloat(higgsTopPInput?.value) || 0.95,
         higgs_max_tokens: parseInt(higgsMaxTokensInput?.value) || 1024,

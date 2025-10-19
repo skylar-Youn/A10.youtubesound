@@ -218,6 +218,9 @@ class SInput(BaseModel):
     higgs_temperature: float = 0.3  # for Higgs Audio V2: temperature (0.1-1.0, lower=more consistent)
     higgs_top_p: float = 0.95  # for Higgs Audio V2: top_p sampling (0.0-1.0)
     higgs_max_tokens: int = 1024  # for Higgs Audio V2: max audio tokens to generate
+    higgs_emotion: str = "neutral"  # for Higgs Audio V2: neutral, happy, sad, angry, energetic, calm, singing
+    higgs_speed: float = 1.0  # for Higgs Audio V2: speech speed (0.5=slow, 1.0=normal, 2.0=fast)
+    higgs_singing_mode: bool = False  # for Higgs Audio V2: enable singing/music generation mode
     fish_temperature: float = 0.7  # for Fish Speech: temperature (0.1-1.0)
     fish_top_p: float = 0.7  # for Fish Speech: top_p sampling (0.0-1.0)
     fish_max_tokens: int = 1024  # for Fish Speech: max tokens to generate
@@ -559,10 +562,26 @@ def synth(in_: SInput):
             device = "cuda" if torch.cuda.is_available() else "cpu"
             serve_engine = HiggsAudioServeEngine(HIGGS_MODEL_PATH, HIGGS_TOKENIZER_PATH, device=device)
 
-            # Prepare system prompt
+            # Prepare emotion-aware system prompt with singing support
+            emotion_instructions = {
+                "neutral": "Audio is recorded from a quiet room. Speak in a neutral, calm tone.",
+                "happy": "Audio is recorded from a quiet room. Speak in a happy, cheerful, and excited tone.",
+                "sad": "Audio is recorded from a quiet room. Speak in a sad, melancholic, and somber tone.",
+                "angry": "Audio is recorded from a quiet room. Speak in an angry, intense, and forceful tone.",
+                "energetic": "Audio is recorded from a quiet room. Speak in an energetic, lively, and enthusiastic tone.",
+                "calm": "Audio is recorded from a quiet room. Speak in a calm, peaceful, and soothing tone.",
+                "singing": "Audio is recorded from a quiet room. Sing the following lyrics with melody and musicality.",
+            }
+
+            # Override with singing mode if enabled
+            if in_.higgs_singing_mode:
+                emotion_desc = "Audio is recorded from a quiet room. Sing the following lyrics with melody, rhythm, and musical expression. Include background music to enhance the atmosphere."
+            else:
+                emotion_desc = emotion_instructions.get(in_.higgs_emotion.lower(), emotion_instructions["neutral"])
+
             system_prompt = (
-                "Generate audio following instruction.\n\n<|scene_desc_start|>\n"
-                "Audio is recorded from a quiet room.\n<|scene_desc_end|>"
+                f"Generate audio following instruction.\n\n<|scene_desc_start|>\n"
+                f"{emotion_desc}\n<|scene_desc_end|>"
             )
 
             # Prepare messages
@@ -584,6 +603,11 @@ def synth(in_: SInput):
             # Higgs outputs at 24kHz, need to convert to 22050Hz for ProsodyNet compatibility
             import librosa
             audio_resampled = librosa.resample(output.audio, orig_sr=output.sampling_rate, target_sr=SR)
+
+            # Apply speed adjustment if needed
+            if in_.higgs_speed != 1.0:
+                audio_resampled = librosa.effects.time_stretch(audio_resampled, rate=in_.higgs_speed)
+
             # Save as wav file
             wavfile.write(str(neutral_path), SR, (audio_resampled * 32767).astype(np.int16))
         except Exception as exc:

@@ -294,6 +294,31 @@
                             </p>
                         </div>
                         <label class="field">
+                            <label class="inline" style="margin-bottom: 8px;">
+                                <input id="higgs-singing-mode" type="checkbox">
+                                🎵 Singing Mode (노래 모드 - 배경 음악 포함)
+                            </label>
+                            <small style="color: #94a3b8; display: block; margin-top: 4px;">체크 시: 가사를 노래로 변환하고 배경 음악 추가</small>
+                        </label>
+                        <label class="field">
+                            <span>Emotion Style (감정 스타일)</span>
+                            <select id="higgs-emotion">
+                                <option value="neutral">Neutral (중립)</option>
+                                <option value="happy">Happy (기쁨)</option>
+                                <option value="sad">Sad (슬픔)</option>
+                                <option value="angry">Angry (화남)</option>
+                                <option value="energetic">Energetic (활기찬)</option>
+                                <option value="calm">Calm (차분한)</option>
+                                <option value="singing">🎵 Singing (노래)</option>
+                            </select>
+                            <small style="color: #94a3b8;">전체적인 감정 톤 설정 (Singing 모드는 배경음악 없이 멜로디만)</small>
+                        </label>
+                        <label class="field">
+                            <span>Speed (속도): <span id="higgs-speed-value">1.0x</span></span>
+                            <input id="higgs-speed" type="range" min="0.5" max="2.0" step="0.1" value="1.0">
+                            <small style="color: #94a3b8;">0.5x (느림) ~ 2.0x (빠름)</small>
+                        </label>
+                        <label class="field">
                             <span>Temperature (0.1-1.0)</span>
                             <input id="higgs-temperature" type="number" min="0.1" max="1.0" step="0.1" value="0.3">
                             <small style="color: #94a3b8;">낮을수록 일관성↑, 높을수록 다양성↑</small>
