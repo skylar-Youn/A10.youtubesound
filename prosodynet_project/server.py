@@ -89,6 +89,66 @@ except ImportError:
     ORPHEUS_AVAILABLE = False
     OrpheusModel = None
 
+try:
+    from kokoro import KPipeline
+    KOKORO_AVAILABLE = True
+except ImportError:
+    KOKORO_AVAILABLE = False
+    KPipeline = None
+
+try:
+    import edge_tts
+    import asyncio
+    EDGE_AVAILABLE = True
+except ImportError:
+    EDGE_AVAILABLE = False
+    edge_tts = None
+
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except ImportError:
+    GTTS_AVAILABLE = False
+    gTTS = None
+
+try:
+    import pyttsx3
+    PYTTSX3_AVAILABLE = True
+except ImportError:
+    PYTTSX3_AVAILABLE = False
+    pyttsx3 = None
+
+try:
+    from bark import SAMPLE_RATE as BARK_SAMPLE_RATE, generate_audio
+    from scipy.io import wavfile
+    BARK_AVAILABLE = True
+except ImportError:
+    BARK_AVAILABLE = False
+    generate_audio = None
+    BARK_SAMPLE_RATE = None
+
+try:
+    from boson_multimodal.serve.serve_engine import HiggsAudioServeEngine, HiggsAudioResponse
+    from boson_multimodal.data_types import ChatMLSample, Message
+    import torchaudio
+    HIGGS_AVAILABLE = True
+    # Higgs Audio V2 모델 경로 (HuggingFace repo ID 사용 - 자동으로 캐시에서 로드)
+    HIGGS_MODEL_PATH = "bosonai/higgs-audio-v2-generation-3B-base"
+    HIGGS_TOKENIZER_PATH = "bosonai/higgs-audio-v2-tokenizer"
+except ImportError:
+    HIGGS_AVAILABLE = False
+    HiggsAudioServeEngine = None
+    HiggsAudioResponse = None
+    ChatMLSample = None
+    Message = None
+    torchaudio = None
+    HIGGS_MODEL_PATH = None
+    HIGGS_TOKENIZER_PATH = None
+
+# Fish Speech - HTTP API 방식 (별도 서버 필요)
+FISH_SPEECH_API_URL = "http://localhost:8001"  # Fish Speech API 서버 주소
+FISH_SPEECH_AVAILABLE = True  # Fish Speech API 서버가 실행 중이면 True
+
 try:  # allow running both as package and as a script
     from .prosodynet import ProsodyNet
     from .utils_audio import load_wav, wav_to_mel, extract_f0_pw, extract_energy
@@ -137,13 +197,31 @@ class VocoderConfig(BaseModel):
 class SInput(BaseModel):
     text: str
     emotion_id: int = 0
-    tts_engine: str = "coqui"  # "coqui" or "orpheus"
+    tts_engine: str = "coqui"  # "coqui", "orpheus", "kokoro", "edge", "gtts", "pyttsx3", "bark", "higgs", or "fish"
     tts_model: str = "tts_models/multilingual/multi-dataset/xtts_v2"
     use_prosodynet: bool = True  # Apply emotion conversion with ProsodyNet
     use_rvc: bool = False
     language: str | None = None
     speaker: str | None = None
     orpheus_voice: str = "tara"  # for Orpheus: tara, leah, jess, leo, dan, mia, zac, zoe
+    orpheus_model: str = "canopylabs/orpheus-tts-0.1-finetune-prod"  # or "canopylabs/3b-ko-ft-research_release" for Korean
+    kokoro_lang: str = "j"  # for Kokoro: a=American English, b=British English, j=Japanese, z=Chinese, e=Spanish, f=French, h=Hindi, i=Italian, p=Portuguese
+    kokoro_voice: str = "jf_alpha"  # for Kokoro Japanese: jf_alpha, jm_kumo (more voices available for other languages)
+    edge_voice: str = "ko-KR-SunHiNeural"  # for Edge TTS: ko-KR-SunHiNeural, en-US-JennyNeural, ja-JP-NanamiNeural, etc.
+    edge_rate: str = "+0%"  # Speech rate: -50% to +100%
+    edge_pitch: str = "+0Hz"  # Pitch: -50Hz to +50Hz
+    gtts_lang: str = "ko"  # for gTTS: ko, en, ja, etc. (100+ languages)
+    gtts_tld: str = "com"  # for gTTS: com, co.uk, com.au, co.in, ca, etc.
+    pyttsx3_voice_id: str | None = None  # for pyttsx3: voice ID (platform-specific)
+    bark_voice: str = "v2/en_speaker_6"  # for Bark: voice preset (v2/en_speaker_0-9, v2/zh_speaker_0-9, etc.)
+    higgs_voice: str | None = None  # for Higgs Audio V2: reference audio file path (optional, auto voice if None)
+    higgs_temperature: float = 0.3  # for Higgs Audio V2: temperature (0.1-1.0, lower=more consistent)
+    higgs_top_p: float = 0.95  # for Higgs Audio V2: top_p sampling (0.0-1.0)
+    higgs_max_tokens: int = 1024  # for Higgs Audio V2: max audio tokens to generate
+    fish_temperature: float = 0.7  # for Fish Speech: temperature (0.1-1.0)
+    fish_top_p: float = 0.7  # for Fish Speech: top_p sampling (0.0-1.0)
+    fish_max_tokens: int = 1024  # for Fish Speech: max tokens to generate
+    fish_repetition_penalty: float = 1.2  # for Fish Speech: repetition penalty (1.0-2.0)
     rvc: RVCConfig | None = None
     vocoder: VocoderConfig | None = VocoderConfig()
 
@@ -177,6 +255,32 @@ def load_orpheus_model(model_name: str = "canopylabs/orpheus-tts-0.1-finetune-pr
         return OrpheusModel(model_name=model_name)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to load Orpheus model '{model_name}': {exc}") from exc
+
+
+@lru_cache(maxsize=4)
+def load_kokoro_pipeline(lang_code: str = 'j') -> KPipeline:
+    """Load Kokoro TTS pipeline for specified language.
+
+    Supported language codes:
+    - 'a': American English
+    - 'b': British English
+    - 'j': Japanese
+    - 'z': Mandarin Chinese
+    - 'e': Spanish
+    - 'f': French
+    - 'h': Hindi
+    - 'i': Italian
+    - 'p': Portuguese
+    """
+    if not KOKORO_AVAILABLE:
+        raise HTTPException(
+            status_code=500,
+            detail="Kokoro TTS is not installed. Run: pip install kokoro pyopenjtalk fugashi[unidic-lite] jaconv mojimoji cutlet"
+        )
+    try:
+        return KPipeline(lang_code=lang_code)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load Kokoro pipeline for '{lang_code}': {exc}") from exc
 
 
 def _resolve_rvc_base(base_path: str | None) -> Path:
@@ -328,16 +432,211 @@ def synth(in_: SInput):
 
     if in_.tts_engine == "orpheus":
         # Use Orpheus TTS
-        model = load_orpheus_model()
+        model = load_orpheus_model(in_.orpheus_model)
         try:
             with wave.open(str(neutral_path), "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(24000)
-                for audio_chunk in model.generate_speech(prompt=in_.text, voice=in_.orpheus_voice):
+                # Use voice parameter only if provided (for non-English models, voice might not be needed)
+                kwargs = {"prompt": in_.text}
+                if in_.orpheus_voice:
+                    kwargs["voice"] = in_.orpheus_voice
+                for audio_chunk in model.generate_speech(**kwargs):
                     wf.writeframes(audio_chunk)
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Orpheus TTS synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "kokoro":
+        # Use Kokoro TTS
+        pipeline = load_kokoro_pipeline(in_.kokoro_lang)
+        try:
+            # Generate audio using Kokoro pipeline
+            # The pipeline returns a generator of (gs, ps, audio) tuples
+            generator = pipeline(in_.text, voice=in_.kokoro_voice)
+            audio_chunks = []
+            for gs, ps, audio in generator:
+                # audio is a torch tensor, convert to numpy
+                if hasattr(audio, 'cpu'):
+                    audio_np = audio.cpu().numpy()
+                else:
+                    audio_np = np.array(audio)
+                audio_chunks.append(audio_np)
+
+            # Concatenate all audio chunks
+            full_audio = np.concatenate(audio_chunks)
+
+            # Kokoro outputs 24kHz float32 audio, convert to int16 for WAV
+            audio_int16 = (full_audio * 32767).astype(np.int16)
+
+            # Write to WAV file
+            with wave.open(str(neutral_path), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(24000)
+                wf.writeframes(audio_int16.tobytes())
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Kokoro TTS synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "edge":
+        # Use Edge TTS
+        if not EDGE_AVAILABLE:
+            raise HTTPException(
+                status_code=500,
+                detail="Edge TTS is not installed. Run: pip install edge-tts"
+            )
+        try:
+            # Edge TTS requires async, so we use asyncio.run
+            async def generate_edge_tts():
+                communicate = edge_tts.Communicate(
+                    text=in_.text,
+                    voice=in_.edge_voice,
+                    rate=in_.edge_rate,
+                    pitch=in_.edge_pitch
+                )
+                await communicate.save(str(neutral_path))
+
+            asyncio.run(generate_edge_tts())
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Edge TTS synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "gtts":
+        # Use gTTS (Google Text-to-Speech)
+        if not GTTS_AVAILABLE:
+            raise HTTPException(
+                status_code=500,
+                detail="gTTS is not installed. Run: pip install gtts"
+            )
+        try:
+            tts = gTTS(text=in_.text, lang=in_.gtts_lang, tld=in_.gtts_tld)
+            tts.save(str(neutral_path))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"gTTS synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "pyttsx3":
+        # Use pyttsx3 (offline TTS)
+        if not PYTTSX3_AVAILABLE:
+            raise HTTPException(
+                status_code=500,
+                detail="pyttsx3 is not installed. Run: pip install pyttsx3"
+            )
+        try:
+            engine = pyttsx3.init()
+            if in_.pyttsx3_voice_id:
+                engine.setProperty('voice', in_.pyttsx3_voice_id)
+            engine.save_to_file(in_.text, str(neutral_path))
+            engine.runAndWait()
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"pyttsx3 synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "bark":
+        # Use Bark TTS
+        if not BARK_AVAILABLE:
+            raise HTTPException(
+                status_code=500,
+                detail="Bark TTS is not installed. Run: pip install git+https://github.com/suno-ai/bark.git"
+            )
+        try:
+            # Generate audio with Bark
+            audio_array = generate_audio(in_.text, history_prompt=in_.bark_voice)
+            # Bark outputs at 24kHz, need to convert to 22050Hz for ProsodyNet compatibility
+            import librosa
+            audio_resampled = librosa.resample(audio_array, orig_sr=BARK_SAMPLE_RATE, target_sr=SR)
+            # Save as wav file
+            wavfile.write(str(neutral_path), SR, (audio_resampled * 32767).astype(np.int16))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Bark TTS synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "higgs":
+        # Use Higgs Audio V2
+        if not HIGGS_AVAILABLE:
+            raise HTTPException(
+                status_code=500,
+                detail="Higgs Audio V2 is not installed. Run: pip install -e /mnt/sdb1/ws-sky-data/youtubesound-data/higgs_audio_v2/higgs-audio"
+            )
+        try:
+            # Initialize Higgs Audio engine
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            serve_engine = HiggsAudioServeEngine(HIGGS_MODEL_PATH, HIGGS_TOKENIZER_PATH, device=device)
+
+            # Prepare system prompt
+            system_prompt = (
+                "Generate audio following instruction.\n\n<|scene_desc_start|>\n"
+                "Audio is recorded from a quiet room.\n<|scene_desc_end|>"
+            )
+
+            # Prepare messages
+            messages = [
+                Message(role="system", content=system_prompt),
+                Message(role="user", content=in_.text),
+            ]
+
+            # Generate audio
+            output: HiggsAudioResponse = serve_engine.generate(
+                chat_ml_sample=ChatMLSample(messages=messages),
+                max_new_tokens=in_.higgs_max_tokens,
+                temperature=in_.higgs_temperature,
+                top_p=in_.higgs_top_p,
+                top_k=50,
+                stop_strings=["<|end_of_text|>", "<|eot_id|>"],
+            )
+
+            # Higgs outputs at 24kHz, need to convert to 22050Hz for ProsodyNet compatibility
+            import librosa
+            audio_resampled = librosa.resample(output.audio, orig_sr=output.sampling_rate, target_sr=SR)
+            # Save as wav file
+            wavfile.write(str(neutral_path), SR, (audio_resampled * 32767).astype(np.int16))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Higgs Audio V2 synthesis failed: {exc}") from exc
+
+    elif in_.tts_engine == "fish":
+        # Use Fish Speech (HTTP API)
+        if not FISH_SPEECH_AVAILABLE:
+            raise HTTPException(
+                status_code=500,
+                detail="Fish Speech API is not available. Please start the Fish Speech API server on port 8001."
+            )
+        try:
+            import requests
+            # Fish Speech API 호출
+            api_url = f"{FISH_SPEECH_API_URL}/v1/tts"
+            payload = {
+                "text": in_.text,
+                "format": "wav",
+                "streaming": False,
+                "max_new_tokens": in_.fish_max_tokens,
+                "chunk_length": 200,
+                "top_p": in_.fish_top_p,
+                "repetition_penalty": in_.fish_repetition_penalty,
+                "temperature": in_.fish_temperature,
+            }
+
+            response = requests.post(api_url, json=payload, timeout=60)
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Fish Speech API error: {response.status_code} - {response.text}"
+                )
+
+            # WAV 데이터를 파일로 저장
+            with open(neutral_path, "wb") as f:
+                f.write(response.content)
+
+            # Fish Speech는 일반적으로 44.1kHz로 출력, 22050Hz로 변환
+            import librosa
+            audio, sr_orig = librosa.load(str(neutral_path), sr=None)
+            if sr_orig != SR:
+                audio_resampled = librosa.resample(audio, orig_sr=sr_orig, target_sr=SR)
+                wavfile.write(str(neutral_path), SR, (audio_resampled * 32767).astype(np.int16))
+
+        except requests.exceptions.RequestException as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Fish Speech API connection failed: {exc}. Make sure Fish Speech API server is running on {FISH_SPEECH_API_URL}"
+            ) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Fish Speech synthesis failed: {exc}") from exc
 
     else:
         # Use Coqui TTS (default)
@@ -439,10 +738,37 @@ def synth(in_: SInput):
                 "ckpt_used": ckpt,
                 "tts_used": {
                     "engine": in_.tts_engine,
-                    "model": in_.tts_model if in_.tts_engine == "coqui" else "orpheus",
-                    "language": language,
+                    "model": (
+                        in_.tts_model if in_.tts_engine == "coqui" else
+                        in_.orpheus_model if in_.tts_engine == "orpheus" else
+                        "hexgrad/Kokoro-82M" if in_.tts_engine == "kokoro" else
+                        "Microsoft Edge TTS" if in_.tts_engine == "edge" else
+                        f"Google TTS ({in_.gtts_lang})" if in_.tts_engine == "gtts" else
+                        "pyttsx3 (Offline TTS)" if in_.tts_engine == "pyttsx3" else
+                        f"Bark TTS ({in_.bark_voice})" if in_.tts_engine == "bark" else
+                        "Higgs Audio V2 (BosonAI 3B)" if in_.tts_engine == "higgs" else
+                        "Fish Speech 1.5"
+                    ),
+                    "language": (
+                        language if in_.tts_engine == "coqui" else
+                        in_.kokoro_lang if in_.tts_engine == "kokoro" else
+                        in_.gtts_lang if in_.tts_engine == "gtts" else
+                        None
+                    ),
                     "speaker": speaker,
                     "orpheus_voice": in_.orpheus_voice if in_.tts_engine == "orpheus" else None,
+                    "kokoro_voice": in_.kokoro_voice if in_.tts_engine == "kokoro" else None,
+                    "edge_voice": in_.edge_voice if in_.tts_engine == "edge" else None,
+                    "gtts_lang": in_.gtts_lang if in_.tts_engine == "gtts" else None,
+                    "gtts_tld": in_.gtts_tld if in_.tts_engine == "gtts" else None,
+                    "pyttsx3_voice_id": in_.pyttsx3_voice_id if in_.tts_engine == "pyttsx3" else None,
+                    "bark_voice": in_.bark_voice if in_.tts_engine == "bark" else None,
+                    "higgs_temperature": in_.higgs_temperature if in_.tts_engine == "higgs" else None,
+                    "higgs_top_p": in_.higgs_top_p if in_.tts_engine == "higgs" else None,
+                    "fish_temperature": in_.fish_temperature if in_.tts_engine == "fish" else None,
+                    "fish_top_p": in_.fish_top_p if in_.tts_engine == "fish" else None,
+                    "fish_max_tokens": in_.fish_max_tokens if in_.tts_engine == "fish" else None,
+                    "fish_repetition_penalty": in_.fish_repetition_penalty if in_.tts_engine == "fish" else None,
                 },
             }
 
@@ -454,10 +780,37 @@ def synth(in_: SInput):
         "prosodynet_enabled": in_.use_prosodynet,
         "tts_used": {
             "engine": in_.tts_engine,
-            "model": in_.tts_model if in_.tts_engine == "coqui" else "orpheus",
-            "language": language,
+            "model": (
+                in_.tts_model if in_.tts_engine == "coqui" else
+                in_.orpheus_model if in_.tts_engine == "orpheus" else
+                "hexgrad/Kokoro-82M" if in_.tts_engine == "kokoro" else
+                "Microsoft Edge TTS" if in_.tts_engine == "edge" else
+                f"Google TTS ({in_.gtts_lang})" if in_.tts_engine == "gtts" else
+                "pyttsx3 (Offline TTS)" if in_.tts_engine == "pyttsx3" else
+                f"Bark TTS ({in_.bark_voice})" if in_.tts_engine == "bark" else
+                "Higgs Audio V2 (BosonAI 3B)" if in_.tts_engine == "higgs" else
+                "Fish Speech 1.5"
+            ),
+            "language": (
+                language if in_.tts_engine == "coqui" else
+                in_.kokoro_lang if in_.tts_engine == "kokoro" else
+                in_.gtts_lang if in_.tts_engine == "gtts" else
+                None
+            ),
             "speaker": speaker,
             "orpheus_voice": in_.orpheus_voice if in_.tts_engine == "orpheus" else None,
+            "kokoro_voice": in_.kokoro_voice if in_.tts_engine == "kokoro" else None,
+            "edge_voice": in_.edge_voice if in_.tts_engine == "edge" else None,
+            "gtts_lang": in_.gtts_lang if in_.tts_engine == "gtts" else None,
+            "gtts_tld": in_.gtts_tld if in_.tts_engine == "gtts" else None,
+            "pyttsx3_voice_id": in_.pyttsx3_voice_id if in_.tts_engine == "pyttsx3" else None,
+            "bark_voice": in_.bark_voice if in_.tts_engine == "bark" else None,
+            "higgs_temperature": in_.higgs_temperature if in_.tts_engine == "higgs" else None,
+            "higgs_top_p": in_.higgs_top_p if in_.tts_engine == "higgs" else None,
+            "fish_temperature": in_.fish_temperature if in_.tts_engine == "fish" else None,
+            "fish_top_p": in_.fish_top_p if in_.tts_engine == "fish" else None,
+            "fish_max_tokens": in_.fish_max_tokens if in_.tts_engine == "fish" else None,
+            "fish_repetition_penalty": in_.fish_repetition_penalty if in_.tts_engine == "fish" else None,
         },
     }
 

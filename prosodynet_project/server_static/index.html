@@ -17,13 +17,40 @@
             <form id="synth-form">
                 <label class="field">
                     <span>합성할 문장</span>
+                    <div class="row" style="margin-bottom: 8px;">
+                        <select id="example-select" style="flex: 1;">
+                            <option value="">-- 예문 선택 --</option>
+                            <optgroup label="한국어 (Korean)">
+                                <option value="안녕하세요, 반갑습니다.">안녕하세요, 반갑습니다.</option>
+                                <option value="오늘 날씨가 정말 좋네요.">오늘 날씨가 정말 좋네요.</option>
+                                <option value="감사합니다. 도움이 되었어요.">감사합니다. 도움이 되었어요.</option>
+                                <option value="이 음식은 정말 맛있어요!">이 음식은 정말 맛있어요!</option>
+                                <option value="내일 만나서 이야기해요.">내일 만나서 이야기해요.</option>
+                            </optgroup>
+                            <optgroup label="English">
+                                <option value="Hello, nice to meet you.">Hello, nice to meet you.</option>
+                                <option value="The weather is beautiful today.">The weather is beautiful today.</option>
+                                <option value="Thank you so much for your help.">Thank you so much for your help.</option>
+                                <option value="This is absolutely wonderful!">This is absolutely wonderful!</option>
+                                <option value="Let's talk about it tomorrow.">Let's talk about it tomorrow.</option>
+                            </optgroup>
+                            <optgroup label="日本語 (Japanese)">
+                                <option value="こんにちは、元気ですか。">こんにちは、元気ですか。</option>
+                                <option value="今日はとても良い天気ですね。">今日はとても良い天気ですね。</option>
+                                <option value="ありがとうございます。助かりました。">ありがとうございます。助かりました。</option>
+                                <option value="この料理は本当に美味しいです。">この料理は本当に美味しいです。</option>
+                                <option value="明日また会いましょう。">明日また会いましょう。</option>
+                            </optgroup>
+                        </select>
+                        <button id="apply-example-btn" type="button" class="secondary-button" style="margin-left: 8px;">적용</button>
+                    </div>
                     <textarea id="text-input" rows="4" placeholder="예: 안녕하세요, 오늘 기분이 어떤가요?" required></textarea>
                 </label>
 
                 <fieldset class="field">
                     <legend>
                         <label class="inline">
-                            <input id="use-prosodynet" type="checkbox" checked>
+                            <input id="use-prosodynet" type="checkbox">
                             ProsodyNet 감정 변환 사용
                         </label>
                     </legend>
@@ -83,15 +110,39 @@
                 <fieldset class="field">
                     <legend>TTS 엔진</legend>
                     <label class="inline">
-                        <input type="radio" name="tts-engine" value="coqui" checked>
+                        <input type="radio" name="tts-engine" value="coqui">
                         Coqui TTS
                     </label>
                     <label class="inline">
                         <input type="radio" name="tts-engine" value="orpheus">
                         Orpheus TTS
                     </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="kokoro">
+                        Kokoro TTS
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="edge" checked>
+                        Edge TTS
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="gtts">
+                        gTTS (Google)
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="pyttsx3">
+                        pyttsx3 (Offline)
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="higgs">
+                        Higgs Audio V2
+                    </label>
+                    <label class="inline">
+                        <input type="radio" name="tts-engine" value="fish">
+                        Fish Speech 1.5
+                    </label>
 
-                    <div id="coqui-config" class="field">
+                    <div id="coqui-config" class="field hidden">
                         <label class="field">
                             <span>TTS 모델 ID</span>
                             <input id="tts-model" type="text" value="tts_models/multilingual/multi-dataset/xtts_v2">
@@ -111,6 +162,178 @@
                                 <option value="zac">Zac</option>
                                 <option value="zoe">Zoe</option>
                             </select>
+                        </label>
+                    </div>
+
+                    <div id="kokoro-config" class="field hidden">
+                        <div class="help-block" style="background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3);">
+                            <p style="color: #4ade80;">✨ <strong>Kokoro TTS - 경량 고품질 TTS</strong></p>
+                            <p style="color: #cbd5e1;">일본어, 영어 등 9개 언어 지원. ProsodyNet 감정 변환도 사용 가능합니다.</p>
+                        </div>
+                        <label class="field">
+                            <span>Kokoro Language</span>
+                            <select id="kokoro-lang">
+                                <option value="j">Japanese (일본어)</option>
+                                <option value="a">American English</option>
+                                <option value="b">British English</option>
+                                <option value="z">Mandarin Chinese</option>
+                                <option value="e">Spanish</option>
+                                <option value="f">French</option>
+                                <option value="h">Hindi</option>
+                                <option value="i">Italian</option>
+                                <option value="p">Portuguese</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Kokoro Voice</span>
+                            <select id="kokoro-voice">
+                                <option value="jf_alpha">jf_alpha (Japanese Female)</option>
+                                <option value="jm_kumo">jm_kumo (Japanese Male)</option>
+                                <option value="af_bella">af_bella (American Female)</option>
+                                <option value="af_sarah">af_sarah (American Female)</option>
+                                <option value="am_adam">am_adam (American Male)</option>
+                                <option value="am_michael">am_michael (American Male)</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div id="edge-config" class="field">
+                        <div class="help-block" style="background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3);">
+                            <p style="color: #4ade80;">✨ <strong>Edge TTS - Microsoft의 고품질 TTS (권장)</strong></p>
+                            <p style="color: #cbd5e1;">한국어, 영어, 일본어 등 40개 이상 언어 지원. 빠르고 자연스러운 음성.</p>
+                        </div>
+                        <label class="field">
+                            <span>Edge Voice (목소리 선택)</span>
+                            <select id="edge-voice">
+                                <optgroup label="한국어 (Korean)">
+                                    <option value="ko-KR-SunHiNeural" selected>SunHi (여성, 밝음)</option>
+                                    <option value="ko-KR-InJoonNeural">InJoon (남성, 안정적)</option>
+                                    <option value="ko-KR-BongJinNeural">BongJin (남성, 낭독)</option>
+                                    <option value="ko-KR-GookMinNeural">GookMin (남성, 뉴스)</option>
+                                    <option value="ko-KR-JiMinNeural">JiMin (여성, 친근함)</option>
+                                    <option value="ko-KR-SeoHyeonNeural">SeoHyeon (여성, 부드러움)</option>
+                                    <option value="ko-KR-SoonBokNeural">SoonBok (여성, 따뜻함)</option>
+                                    <option value="ko-KR-YuJinNeural">YuJin (여성, 활발함)</option>
+                                    <option value="ko-KR-HyunsuNeural">Hyunsu (남성, 진중함)</option>
+                                </optgroup>
+                                <optgroup label="English (US)">
+                                    <option value="en-US-JennyNeural">Jenny (여성)</option>
+                                    <option value="en-US-GuyNeural">Guy (남성)</option>
+                                    <option value="en-US-AriaNeural">Aria (여성)</option>
+                                    <option value="en-US-DavisNeural">Davis (남성)</option>
+                                    <option value="en-US-AmberNeural">Amber (여성)</option>
+                                    <option value="en-US-TonyNeural">Tony (남성)</option>
+                                </optgroup>
+                                <optgroup label="日本語 (Japanese)">
+                                    <option value="ja-JP-NanamiNeural">Nanami (여성)</option>
+                                    <option value="ja-JP-KeitaNeural">Keita (남성)</option>
+                                    <option value="ja-JP-AoiNeural">Aoi (여성)</option>
+                                    <option value="ja-JP-DaichiNeural">Daichi (남성)</option>
+                                    <option value="ja-JP-MayuNeural">Mayu (여성)</option>
+                                    <option value="ja-JP-NaokiNeural">Naoki (남성)</option>
+                                    <option value="ja-JP-ShioriNeural">Shiori (여성)</option>
+                                </optgroup>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div id="gtts-config" class="field hidden">
+                        <div class="help-block" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
+                            <p style="color: #60a5fa;">🌐 <strong>gTTS - Google Text-to-Speech</strong></p>
+                            <p style="color: #cbd5e1;">100개 이상 언어 지원. 인터넷 연결 필요. Google 음성 품질.</p>
+                        </div>
+                        <label class="field">
+                            <span>언어 코드</span>
+                            <select id="gtts-lang">
+                                <option value="ko" selected>한국어 (ko)</option>
+                                <option value="en">영어 (en)</option>
+                                <option value="ja">일본어 (ja)</option>
+                                <option value="zh-CN">중국어 간체 (zh-CN)</option>
+                                <option value="zh-TW">중국어 번체 (zh-TW)</option>
+                                <option value="es">스페인어 (es)</option>
+                                <option value="fr">프랑스어 (fr)</option>
+                                <option value="de">독일어 (de)</option>
+                                <option value="it">이탈리아어 (it)</option>
+                                <option value="pt">포르투갈어 (pt)</option>
+                                <option value="ru">러시아어 (ru)</option>
+                                <option value="ar">아랍어 (ar)</option>
+                                <option value="hi">힌디어 (hi)</option>
+                                <option value="th">태국어 (th)</option>
+                                <option value="vi">베트남어 (vi)</option>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>TLD (지역)</span>
+                            <select id="gtts-tld">
+                                <option value="com" selected>com (기본)</option>
+                                <option value="co.uk">co.uk (영국)</option>
+                                <option value="com.au">com.au (호주)</option>
+                                <option value="co.in">co.in (인도)</option>
+                                <option value="ca">ca (캐나다)</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div id="pyttsx3-config" class="field hidden">
+                        <div class="help-block" style="background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3);">
+                            <p style="color: #a78bfa;">💾 <strong>pyttsx3 - 완전 오프라인 TTS</strong></p>
+                            <p style="color: #cbd5e1;">인터넷 불필요. 시스템 기본 음성 엔진 사용. 빠른 응답.</p>
+                        </div>
+                        <p style="color: #94a3b8; font-size: 0.9rem;">시스템 기본 음성을 사용합니다. 추가 설정 불필요.</p>
+                    </div>
+
+                    <div id="higgs-config" class="field hidden">
+                        <div class="help-block" style="background: rgba(236, 72, 153, 0.1); border-color: rgba(236, 72, 153, 0.3);">
+                            <p style="color: #ec4899;">🎯 <strong>Higgs Audio V2 - 초고품질 TTS</strong></p>
+                            <p style="color: #cbd5e1;">BosonAI의 3B 파라미터 모델. 10M시간 학습. 최고 표현력. GPU 필요 (8GB+ VRAM).</p>
+                            <p style="color: #f472b6; font-size: 0.9rem; margin-top: 8px;">
+                                ✨ EmergentTTS 벤치마크 1위 (GPT-4o-mini 대비 75.7% 승률)
+                            </p>
+                        </div>
+                        <label class="field">
+                            <span>Temperature (0.1-1.0)</span>
+                            <input id="higgs-temperature" type="number" min="0.1" max="1.0" step="0.1" value="0.3">
+                            <small style="color: #94a3b8;">낮을수록 일관성↑, 높을수록 다양성↑</small>
+                        </label>
+                        <label class="field">
+                            <span>Top P (0.0-1.0)</span>
+                            <input id="higgs-top-p" type="number" min="0.0" max="1.0" step="0.05" value="0.95">
+                            <small style="color: #94a3b8;">샘플링 범위 (기본값 0.95 권장)</small>
+                        </label>
+                        <label class="field">
+                            <span>Max Tokens</span>
+                            <input id="higgs-max-tokens" type="number" min="128" max="2048" step="128" value="1024">
+                            <small style="color: #94a3b8;">생성할 최대 오디오 토큰 수 (길이 조절)</small>
+                        </label>
+                    </div>
+
+                    <div id="fish-config" class="field hidden">
+                        <div class="help-block" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
+                            <p style="color: #3b82f6;">🐟 <strong>Fish Speech 1.5 - TTS-Arena2 1위</strong></p>
+                            <p style="color: #cbd5e1;">4B 파라미터 모델. 720K시간 학습. 최고 자연스러움. GPU 필요 (12GB+ VRAM).</p>
+                            <p style="color: #60a5fa; font-size: 0.9rem; margin-top: 8px;">
+                                ✨ TTS-Arena2 벤치마크 1위 - 가장 자연스러운 음성 생성
+                            </p>
+                        </div>
+                        <label class="field">
+                            <span>Temperature (0.1-1.0)</span>
+                            <input id="fish-temperature" type="number" min="0.1" max="1.0" step="0.1" value="0.7">
+                            <small style="color: #94a3b8;">낮을수록 일관성↑, 높을수록 다양성↑</small>
+                        </label>
+                        <label class="field">
+                            <span>Top P (0.0-1.0)</span>
+                            <input id="fish-top-p" type="number" min="0.0" max="1.0" step="0.05" value="0.7">
+                            <small style="color: #94a3b8;">샘플링 범위 (기본값 0.7 권장)</small>
+                        </label>
+                        <label class="field">
+                            <span>Max Tokens</span>
+                            <input id="fish-max-tokens" type="number" min="128" max="4096" step="128" value="1024">
+                            <small style="color: #94a3b8;">생성할 최대 토큰 수 (길이 조절)</small>
+                        </label>
+                        <label class="field">
+                            <span>Repetition Penalty (0.5-2.0)</span>
+                            <input id="fish-repetition-penalty" type="number" min="0.5" max="2.0" step="0.1" value="1.2">
+                            <small style="color: #94a3b8;">반복 억제 (기본값 1.2 권장)</small>
                         </label>
                     </div>
                 </fieldset>
@@ -195,6 +418,16 @@
             <div class="button-group">
                 <button id="download-all-btn" type="button" class="secondary-button">📥 전체 다운로드</button>
                 <button id="browse-files-btn" type="button" class="secondary-button">📂 전체 파일 찾기</button>
+            </div>
+        </section>
+
+        <section id="prosodynet-files" class="card hidden">
+            <h2>🎭 ProsodyNet 감정 변환 파일</h2>
+            <div class="button-group">
+                <button id="refresh-prosodynet-btn" class="secondary-button">새로고침</button>
+            </div>
+            <div id="prosodynet-list" class="file-list">
+                <p style="color: #94a3b8;">ProsodyNet으로 생성된 파일이 여기에 표시됩니다.</p>
             </div>
         </section>
 

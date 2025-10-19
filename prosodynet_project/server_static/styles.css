@@ -205,3 +205,60 @@ audio {
 a {
     color: #38bdf8;
 }
+
+.button-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.file-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 12px;
+}
+
+.file-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.file-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.file-list li:hover {
+    background: rgba(56, 189, 248, 0.05);
+}
+
+.file-list a {
+    flex: 1;
+    text-decoration: none;
+    color: #38bdf8;
+}
+
+.file-list a:hover {
+    text-decoration: underline;
+}
+
+.play-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.play-btn:hover {
+    background: rgba(56, 189, 248, 0.25);
+    transform: scale(1.05);
+}

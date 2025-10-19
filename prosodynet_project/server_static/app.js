@@ -7,6 +7,8 @@ const emotionalAudio = document.getElementById("emotional-audio");
 const melLink = document.getElementById("mel-link");
 const ckptLine = document.getElementById("ckpt-line");
 const textInput = document.getElementById("text-input");
+const exampleSelect = document.getElementById("example-select");
+const applyExampleBtn = document.getElementById("apply-example-btn");
 const speakerSelect = document.getElementById("speaker-select");
 const emotionSelect = document.getElementById("emotion-select");
 const ttsModelInput = document.getElementById("tts-model");
@@ -28,11 +30,29 @@ const ttsEngineRadios = Array.from(
 const coquiConfig = document.getElementById("coqui-config");
 const orpheusConfig = document.getElementById("orpheus-config");
 const orpheusVoiceSelect = document.getElementById("orpheus-voice");
+const kokoroConfig = document.getElementById("kokoro-config");
+const kokoroLangSelect = document.getElementById("kokoro-lang");
+const kokoroVoiceSelect = document.getElementById("kokoro-voice");
+const edgeConfig = document.getElementById("edge-config");
+const edgeVoiceSelect = document.getElementById("edge-voice");
+const gttsConfig = document.getElementById("gtts-config");
+const gttsLangSelect = document.getElementById("gtts-lang");
+const gttsTldSelect = document.getElementById("gtts-tld");
+const pyttsx3Config = document.getElementById("pyttsx3-config");
+const higgsConfig = document.getElementById("higgs-config");
+const higgsTemperatureInput = document.getElementById("higgs-temperature");
+const higgsTopPInput = document.getElementById("higgs-top-p");
+const higgsMaxTokensInput = document.getElementById("higgs-max-tokens");
+const fishConfig = document.getElementById("fish-config");
+const fishTemperatureInput = document.getElementById("fish-temperature");
+const fishTopPInput = document.getElementById("fish-top-p");
+const fishMaxTokensInput = document.getElementById("fish-max-tokens");
+const fishRepetitionPenaltyInput = document.getElementById("fish-repetition-penalty");
 const useProsodynetInput = document.getElementById("use-prosodynet");
 const prosodynetConfig = document.getElementById("prosodynet-config");
 const vocoderSection = document.getElementById("vocoder-section");
 
-const STORAGE_KEY = "prosodynet_ui_state";
+const STORAGE_KEY = "prosodynet_ui_state_v2"; // Changed to reset old settings
 
 function toggleBlock(element, show) {
     if (!element) return;
@@ -54,7 +74,7 @@ function getVocoderMode() {
 
 function getTtsEngine() {
     const checked = ttsEngineRadios.find((radio) => radio.checked);
-    return checked ? checked.value : "coqui";
+    return checked ? checked.value : "edge";
 }
 
 function sanitize(value) {
@@ -167,10 +187,27 @@ function applyState() {
             radio.checked = true;
             toggleBlock(coquiConfig, radio.value === "coqui");
             toggleBlock(orpheusConfig, radio.value === "orpheus");
+            toggleBlock(kokoroConfig, radio.value === "kokoro");
+            toggleBlock(edgeConfig, radio.value === "edge");
         }
     }
     if (state.orpheus_voice != null && orpheusVoiceSelect) {
         orpheusVoiceSelect.value = state.orpheus_voice;
+    }
+    if (state.kokoro_lang != null && kokoroLangSelect) {
+        kokoroLangSelect.value = state.kokoro_lang;
+    }
+    if (state.kokoro_voice != null && kokoroVoiceSelect) {
+        kokoroVoiceSelect.value = state.kokoro_voice;
+    }
+    if (state.edge_voice != null && edgeVoiceSelect) {
+        edgeVoiceSelect.value = state.edge_voice;
+    }
+    if (state.gtts_lang != null && gttsLangSelect) {
+        gttsLangSelect.value = state.gtts_lang;
+    }
+    if (state.gtts_tld != null && gttsTldSelect) {
+        gttsTldSelect.value = state.gtts_tld;
     }
     if (state.use_prosodynet != null && useProsodynetInput) {
         useProsodynetInput.checked = state.use_prosodynet;
@@ -182,8 +219,15 @@ function applyState() {
 function syncPanels() {
     toggleBlock(hifiganFields, getVocoderMode() === "hifigan");
     toggleBlock(rvcFields, !!useRvcInput?.checked);
-    toggleBlock(coquiConfig, getTtsEngine() === "coqui");
-    toggleBlock(orpheusConfig, getTtsEngine() === "orpheus");
+    const engine = getTtsEngine();
+    toggleBlock(coquiConfig, engine === "coqui");
+    toggleBlock(orpheusConfig, engine === "orpheus");
+    toggleBlock(kokoroConfig, engine === "kokoro");
+    toggleBlock(edgeConfig, engine === "edge");
+    toggleBlock(gttsConfig, engine === "gtts");
+    toggleBlock(pyttsx3Config, engine === "pyttsx3");
+    toggleBlock(higgsConfig, engine === "higgs");
+    toggleBlock(fishConfig, engine === "fish");
     toggleBlock(prosodynetConfig, !!useProsodynetInput?.checked);
     toggleBlock(vocoderSection, !!useProsodynetInput?.checked);
 }
@@ -257,6 +301,7 @@ vocoderRadios.forEach((radio) => {
 ttsEngineRadios.forEach((radio) => {
     radio.addEventListener("change", () => {
         const engine = getTtsEngine();
+
         syncPanels();
         updateState({ tts_engine: engine });
     });
@@ -265,6 +310,54 @@ ttsEngineRadios.forEach((radio) => {
 
 orpheusVoiceSelect?.addEventListener("change", () => {
     updateState({ orpheus_voice: orpheusVoiceSelect.value });
+});
+
+kokoroLangSelect?.addEventListener("change", () => {
+    updateState({ kokoro_lang: kokoroLangSelect.value });
+});
+
+kokoroVoiceSelect?.addEventListener("change", () => {
+    updateState({ kokoro_voice: kokoroVoiceSelect.value });
+});
+
+edgeVoiceSelect?.addEventListener("change", () => {
+    updateState({ edge_voice: edgeVoiceSelect.value });
+});
+
+gttsLangSelect?.addEventListener("change", () => {
+    updateState({ gtts_lang: gttsLangSelect.value });
+});
+
+gttsTldSelect?.addEventListener("change", () => {
+    updateState({ gtts_tld: gttsTldSelect.value });
+});
+
+higgsTemperatureInput?.addEventListener("change", () => {
+    updateState({ higgs_temperature: parseFloat(higgsTemperatureInput.value) });
+});
+
+higgsTopPInput?.addEventListener("change", () => {
+    updateState({ higgs_top_p: parseFloat(higgsTopPInput.value) });
+});
+
+higgsMaxTokensInput?.addEventListener("change", () => {
+    updateState({ higgs_max_tokens: parseInt(higgsMaxTokensInput.value) });
+});
+
+fishTemperatureInput?.addEventListener("change", () => {
+    updateState({ fish_temperature: parseFloat(fishTemperatureInput.value) });
+});
+
+fishTopPInput?.addEventListener("change", () => {
+    updateState({ fish_top_p: parseFloat(fishTopPInput.value) });
+});
+
+fishMaxTokensInput?.addEventListener("change", () => {
+    updateState({ fish_max_tokens: parseInt(fishMaxTokensInput.value) });
+});
+
+fishRepetitionPenaltyInput?.addEventListener("change", () => {
+    updateState({ fish_repetition_penalty: parseFloat(fishRepetitionPenaltyInput.value) });
 });
 
 useProsodynetInput?.addEventListener("change", () => {
@@ -368,6 +461,26 @@ textInput?.addEventListener("input", () => {
     updateState({ text: textInput.value });
 });
 
+// 예문 적용 기능
+applyExampleBtn?.addEventListener("click", () => {
+    const selectedExample = exampleSelect?.value;
+    if (selectedExample && textInput) {
+        textInput.value = selectedExample;
+        updateState({ text: selectedExample });
+        setStatus("예문이 적용되었습니다.", "success");
+
+        // 선택 초기화
+        if (exampleSelect) {
+            exampleSelect.value = "";
+        }
+    }
+});
+
+// 예문 선택 시 직접 적용 (엔터키나 더블클릭)
+exampleSelect?.addEventListener("dblclick", () => {
+    applyExampleBtn?.click();
+});
+
 speakerSelect?.addEventListener("change", () => {
     updateState({ speaker_id: speakerSelect.value });
 });
@@ -417,6 +530,11 @@ const downloadAllBtn = document.getElementById("download-all-btn");
 const browseFilesBtn = document.getElementById("browse-files-btn");
 const fileBrowser = document.getElementById("file-browser");
 const fileList = document.getElementById("file-list");
+
+// ProsodyNet 파일 섹션
+const refreshProsodynetBtn = document.getElementById("refresh-prosodynet-btn");
+const prosodynetFilesSection = document.getElementById("prosodynet-files");
+const prosodynetList = document.getElementById("prosodynet-list");
 
 let currentResults = {
     neutral_wav: null,
@@ -505,6 +623,166 @@ function displayFileList(files) {
     fileList.appendChild(ul);
 }
 
+// ProsodyNet 파일 목록 표시
+function displayProsodynetFiles(files) {
+    if (!prosodynetList) return;
+
+    prosodynetList.innerHTML = "";
+
+    // neutral, emel, emotional 파일들을 그룹화
+    const groups = new Map();
+
+    files.forEach(file => {
+        if (file.startsWith("neutral_")) {
+            const id = file.replace("neutral_", "").replace(".wav", "");
+            if (!groups.has(id)) groups.set(id, {});
+            groups.get(id).neutral = file;
+        } else if (file.startsWith("emel_")) {
+            const id = file.replace("emel_", "").replace(".npy", "");
+            if (!groups.has(id)) groups.set(id, {});
+            groups.get(id).mel = file;
+        } else if (file.startsWith("emotional_")) {
+            const id = file.replace("emotional_", "").replace(".wav", "");
+            if (!groups.has(id)) groups.set(id, {});
+            groups.get(id).emotional = file;
+        }
+    });
+
+    // emotional 파일이 있는 그룹만 표시 (ProsodyNet 사용한 것들)
+    const prosodynetGroups = Array.from(groups.entries())
+        .filter(([id, group]) => group.emotional)
+        .sort((a, b) => b[0].localeCompare(a[0])); // 최신순 정렬
+
+    if (prosodynetGroups.length === 0) {
+        prosodynetList.innerHTML = "<p style='color: #94a3b8;'>ProsodyNet으로 생성된 파일이 없습니다.</p>";
+        return;
+    }
+
+    const container = document.createElement("div");
+
+    prosodynetGroups.forEach(([id, group]) => {
+        const groupDiv = document.createElement("div");
+        groupDiv.style.cssText = "margin-bottom: 20px; padding: 16px; background: rgba(30, 41, 59, 0.5); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);";
+
+        const title = document.createElement("div");
+        title.style.cssText = "font-weight: 600; color: #e2e8f0; margin-bottom: 12px; font-size: 0.9rem;";
+        title.textContent = `파일 ID: ${id.substring(0, 8)}...`;
+        groupDiv.appendChild(title);
+
+        const fileList = document.createElement("div");
+        fileList.style.cssText = "display: flex; flex-direction: column; gap: 8px;";
+
+        // Neutral 음성
+        if (group.neutral) {
+            const neutralDiv = document.createElement("div");
+            neutralDiv.style.cssText = "display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;";
+
+            const neutralHeader = document.createElement("div");
+            neutralHeader.style.cssText = "display: flex; align-items: center; gap: 12px;";
+
+            const neutralLabel = document.createElement("span");
+            neutralLabel.textContent = "중립 음성:";
+            neutralLabel.style.cssText = "color: #94a3b8; min-width: 100px; font-weight: 600;";
+
+            const downloadLink = document.createElement("a");
+            downloadLink.href = `/static/${group.neutral}`;
+            downloadLink.download = group.neutral;
+            downloadLink.textContent = "📥 다운로드";
+            downloadLink.style.cssText = "color: #38bdf8; text-decoration: none;";
+
+            neutralHeader.appendChild(neutralLabel);
+            neutralHeader.appendChild(downloadLink);
+
+            // 인라인 오디오 플레이어
+            const audioPlayer = document.createElement("audio");
+            audioPlayer.controls = true;
+            audioPlayer.src = cacheBust(`/static/${group.neutral}`);
+            audioPlayer.style.cssText = "width: 100%; max-width: 500px; border-radius: 8px;";
+
+            neutralDiv.appendChild(neutralHeader);
+            neutralDiv.appendChild(audioPlayer);
+            fileList.appendChild(neutralDiv);
+        }
+
+        // Emotional 음성
+        if (group.emotional) {
+            const emotionalDiv = document.createElement("div");
+            emotionalDiv.style.cssText = "display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; padding: 12px; background: rgba(34, 197, 94, 0.05); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.2);";
+
+            const emotionalHeader = document.createElement("div");
+            emotionalHeader.style.cssText = "display: flex; align-items: center; gap: 12px;";
+
+            const emotionalLabel = document.createElement("span");
+            emotionalLabel.textContent = "🎭 감정 음성:";
+            emotionalLabel.style.cssText = "color: #4ade80; min-width: 100px; font-weight: 700; font-size: 1.05rem;";
+
+            const downloadLink = document.createElement("a");
+            downloadLink.href = `/static/${group.emotional}`;
+            downloadLink.download = group.emotional;
+            downloadLink.textContent = "📥 다운로드";
+            downloadLink.style.cssText = "color: #4ade80; text-decoration: none; font-weight: 600;";
+
+            emotionalHeader.appendChild(emotionalLabel);
+            emotionalHeader.appendChild(downloadLink);
+
+            // 인라인 오디오 플레이어
+            const audioPlayer = document.createElement("audio");
+            audioPlayer.controls = true;
+            audioPlayer.src = cacheBust(`/static/${group.emotional}`);
+            audioPlayer.style.cssText = "width: 100%; max-width: 500px; border-radius: 8px;";
+
+            emotionalDiv.appendChild(emotionalHeader);
+            emotionalDiv.appendChild(audioPlayer);
+            fileList.appendChild(emotionalDiv);
+        }
+
+        // Mel spectrogram
+        if (group.mel) {
+            const melDiv = document.createElement("div");
+            melDiv.style.cssText = "display: flex; align-items: center; gap: 12px;";
+
+            const melLabel = document.createElement("span");
+            melLabel.textContent = "멜 스펙트로그램:";
+            melLabel.style.cssText = "color: #94a3b8; min-width: 100px;";
+
+            const downloadLink = document.createElement("a");
+            downloadLink.href = `/static/${group.mel}`;
+            downloadLink.download = group.mel;
+            downloadLink.textContent = "📥 다운로드 (.npy)";
+            downloadLink.style.cssText = "color: #38bdf8; text-decoration: none;";
+
+            melDiv.appendChild(melLabel);
+            melDiv.appendChild(downloadLink);
+            fileList.appendChild(melDiv);
+        }
+
+        groupDiv.appendChild(fileList);
+        container.appendChild(groupDiv);
+    });
+
+    prosodynetList.appendChild(container);
+}
+
+// ProsodyNet 파일 새로고침 버튼
+refreshProsodynetBtn?.addEventListener("click", async () => {
+    try {
+        setStatus("ProsodyNet 파일 목록 불러오는 중...");
+        const response = await fetch("/static/list");
+
+        if (!response.ok) {
+            throw new Error(`파일 목록 조회 실패 (HTTP ${response.status})`);
+        }
+
+        const data = await response.json();
+        displayProsodynetFiles(data.files || []);
+        prosodynetFilesSection.classList.remove("hidden");
+        setStatus("ProsodyNet 파일 목록 로드 완료", "success");
+    } catch (error) {
+        console.error(error);
+        setStatus(error.message, "error");
+    }
+});
+
 form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -520,12 +798,27 @@ form.addEventListener("submit", async (event) => {
 
     const payload = {
         text,
-        speaker_id: sanitize(speakerSelect.value) || "0001",
         emotion_id: Number.parseInt(emotionSelect.value, 10),
         tts_engine: getTtsEngine(),
         tts_model: sanitize(ttsModelInput.value) || "tts_models/multilingual/multi-dataset/xtts_v2",
+        speaker: sanitize(speakerSelect.value) || null,
+        language: null,
         orpheus_voice: sanitize(orpheusVoiceSelect?.value) || "tara",
-        use_prosodynet: useProsodynetInput?.checked ?? true,
+        kokoro_lang: sanitize(kokoroLangSelect?.value) || "j",
+        kokoro_voice: sanitize(kokoroVoiceSelect?.value) || "jf_alpha",
+        edge_voice: sanitize(edgeVoiceSelect?.value) || "ko-KR-SunHiNeural",
+        edge_rate: "+0%",
+        edge_pitch: "+0Hz",
+        gtts_lang: sanitize(gttsLangSelect?.value) || "ko",
+        gtts_tld: sanitize(gttsTldSelect?.value) || "com",
+        higgs_temperature: parseFloat(higgsTemperatureInput?.value) || 0.3,
+        higgs_top_p: parseFloat(higgsTopPInput?.value) || 0.95,
+        higgs_max_tokens: parseInt(higgsMaxTokensInput?.value) || 1024,
+        fish_temperature: parseFloat(fishTemperatureInput?.value) || 0.7,
+        fish_top_p: parseFloat(fishTopPInput?.value) || 0.7,
+        fish_max_tokens: parseInt(fishMaxTokensInput?.value) || 1024,
+        fish_repetition_penalty: parseFloat(fishRepetitionPenaltyInput?.value) || 1.2,
+        use_prosodynet: useProsodynetInput?.checked ?? false,
         use_rvc: useRvcInput.checked,
         vocoder: {
             mode: getVocoderMode()
@@ -609,6 +902,22 @@ form.addEventListener("submit", async (event) => {
 
         resultsSection.classList.remove("hidden");
         setStatus("합성 완료! 재생 버튼을 눌러 확인하세요.", "success");
+
+        // ProsodyNet 사용된 경우 자동으로 ProsodyNet 섹션 표시
+        if (data.prosodynet_enabled) {
+            setTimeout(async () => {
+                try {
+                    const response = await fetch("/static/list");
+                    if (response.ok) {
+                        const listData = await response.json();
+                        displayProsodynetFiles(listData.files || []);
+                        prosodynetFilesSection.classList.remove("hidden");
+                    }
+                } catch (err) {
+                    console.error("ProsodyNet 파일 목록 자동 갱신 실패:", err);
+                }
+            }, 500);
+        }
     } catch (error) {
         console.error(error);
         setStatus(error.message, "error");

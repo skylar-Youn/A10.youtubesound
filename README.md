@@ -172,9 +172,13 @@ Please modify the character information of the OS.
   브라우저를 새로고침하고 TTS Engine을 Orpheus로 선택하면 됩니다!
 
 
-lsof -ti :8000 | xargs kill -9
+lsof -ti :7000 | xargs kill -9
 
+  Fish Speech를 별도 API 서버로 실행하고, 우리 서버에서 HTTP 호출
+  # Fish Speech API 서버 실행 (포트 8001)
+  python tools/api_server.py --listen localhost:8001
 
+  
   해결 방법
 
   옵션 1: Orpheus 설정 조정 (복잡함)
