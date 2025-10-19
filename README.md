@@ -1,4 +1,12 @@
 # A10.youtubesound
+
+## 지원하는 TTS 엔진
+- 🐟 **Fish Speech 1.5** - TTS-Arena2 1위 (상업적 사용 불가)
+- **Higgs Audio V2** - 다국어 지원 (한국어/영어/일본어 등 50개 이상)
+- **Coqui TTS**
+- **Orpheus TTS**
+
+## 서버 실행
 uvicorn server:app --reload --port 7000
 
 source /home/sk/ws/youtubesound/.venv/bin/activate
