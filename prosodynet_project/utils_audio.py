@@ -1,7 +1,6 @@
 \
 import numpy as np
 import librosa
-import pyworld as pw
 import soundfile as sf
 
 def load_wav(path, sr=22050):
@@ -21,6 +20,13 @@ def wav_to_mel(wav, sr=22050, n_mels=80, n_fft=1024, hop=256, win=1024, fmin=0, 
     return mel.T  # [T, n_mels]
 
 def extract_f0_pw(wav, sr=22050, hop=256):
+    try:
+        import pyworld as pw
+    except ImportError:
+        raise ImportError(
+            "pyworld is required for F0 extraction. "
+            "Install it with: sudo apt install python3-dev && pip install pyworld"
+        )
     _f0, t = pw.harvest(wav.astype(np.float64), sr, frame_period=hop/sr*1000)
     f0 = pw.stonemask(wav.astype(np.float64), _f0, t, sr)
     return f0.astype(np.float32)  # [T]

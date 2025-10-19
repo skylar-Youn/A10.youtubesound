@@ -162,7 +162,8 @@ Please modify the character information of the OS.
 
   Coqui TTS + ProsodyNet 사용:
   source .venv/bin/activate
-  uvicorn server:app --reload --port 7000
+
+
 
   Orpheus TTS 사용:
   source .venv-orpheus/bin/activate
